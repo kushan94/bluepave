@@ -28,4 +28,4 @@ spec:
     cache: inCluster
   ingress: inCluster
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks]

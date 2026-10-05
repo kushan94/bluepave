@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "aks module settings (bluepave.yaml spec.modules.aks.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maintenanceWindow": {
+      "description": "When automatic upgrades (profile cluster.autoUpgrade) may run. Default: Sunday 02:00-06:00 UTC.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dayOfWeek": { "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
+        "startTime": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+        "durationHours": { "type": "integer", "minimum": 4, "maximum": 24 },
+        "utcOffset": { "type": "string", "pattern": "^[+-](0[0-9]|1[0-4]):[0-5][0-9]$" }
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: aks
+  description: AKS cluster with CNI Overlay + Cilium, Entra ID only access, Workload Identity and managed Prometheus
+spec:
+  version: 0.1.0
+  infraScope: environment
+  requires: [monitoring, network, registry]
+  outputs: [clusterName, oidcIssuerUrl, kubeletIdentityObjectId]
+  config:
+    schema: config.schema.json
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests

@@ -108,6 +108,7 @@ func resourceNames(env string, subscriptionId string) object => {
   firewallPublicIp: 'pip-${prefix}-${env}-${regionCode}-afw'
   routeTable: 'rt-${prefix}-${env}-${regionCode}-spoke-egress'
   aksCluster: 'aks-${prefix}-${env}-${regionCode}'
+  aksIdentity: 'id-${prefix}-${env}-${regionCode}-aks'
   // Globally unique: ACR allows only alphanumerics (5-50), Key Vault 3-24 characters.
   containerRegistry: 'cr${prefix}${env}${regionCode}${take(uniqueString(subscriptionId, prefix, env), 5)}'
   keyVault: 'kv-${prefix}-${env}-${regionCode}-${take(uniqueString(subscriptionId, prefix, env), 5)}'
