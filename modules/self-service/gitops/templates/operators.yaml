@@ -1,0 +1,22 @@
+{{- $ctx := .Values.bluepave }}
+{{- $s := $ctx.scheduling }}
+{{- $ids := include "ss.ids" . | fromYaml }}
+
+{{- /* ASO: two replicas with a disruption budget where the profile is highly available. */ -}}
+{{- $aso := dict
+  "replicaCount" (ternary 2 1 $s.highAvailability)
+  "podDisruptionBudget" (dict "enabled" $s.highAvailability)
+  "tolerations" $s.tolerations
+}}
+{{- if $ids.clientId }}
+{{- $_ := merge $aso (dict
+  "azureSubscriptionID" $ctx.subscriptionId
+  "azureTenantID" $ctx.tenantId
+  "azureClientID" $ids.clientId) }}
+{{- end }}
+{{- $asoValues := mergeOverwrite (.Files.Get "files/aso-values.yaml" | fromYaml) $aso }}
+{{ include "ss.application" (dict "name" "azure-service-operator" "namespace" "azureserviceoperator-system" "upstream" .Values.upstream.aso "values" $asoValues) }}
+{{- $kroValues := mergeOverwrite (.Files.Get "files/kro-values.yaml" | fromYaml) (dict "deployment" (dict "tolerations" $s.tolerations)) }}
+{{- /* kro: an OCI chart; the root chart adds its repository entry (module.yaml spec.sources). */}}
+---
+{{ include "ss.application" (dict "name" "kro" "namespace" "kro-system" "upstream" .Values.upstream.kro "values" $kroValues) }}

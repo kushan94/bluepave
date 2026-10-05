@@ -35,3 +35,7 @@ discovered:
         clientId: 00000000-0000-0000-0000-000000000014
         appClientId: 00000000-0000-0000-0000-000000000015
         monitorWorkspaceQueryEndpoint: https://amw-acme-dev-we-abcd.westeurope.prometheus.monitor.azure.com
+      self-service:
+        clientId: 00000000-0000-0000-0000-000000000016
+        appsResourceGroupId: /subscriptions/00000000-0000-0000-0000-00000000000f/resourceGroups/rg-acme-dev-we-apps
+        oidcIssuerUrl: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-00000000000a/00000000-0000-0000-0000-000000000017/

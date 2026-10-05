@@ -1,0 +1,23 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  region: westeurope
+  tenantId: ""
+  subscriptionId: ""
+  profile: { network: { allowPublicNetworkAccess: true } }
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [], highAvailability: true }
+settings: {}
+
+# The upstream charts. Bumped by module releases, after the end-to-end test.
+upstream:
+  aso:
+    repoURL: https://raw.githubusercontent.com/Azure/azure-service-operator/main/v2/charts
+    chart: azure-service-operator
+    version: 2.21.1
+  kro:
+    repoURL: registry.k8s.io/kro/charts
+    chart: kro
+    version: 0.9.4

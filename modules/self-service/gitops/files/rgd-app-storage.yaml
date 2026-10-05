@@ -1,0 +1,177 @@
+# AppStorage: the platform API for blob storage (ADR-0003).
+#
+# An app team commits one small object next to its app:
+#
+#   apiVersion: platform.bluepave.dev/v1alpha1
+#   kind: AppStorage
+#   metadata: { name: archive, namespace: anvil-dev }
+#   spec:
+#     serviceAccountName: anvil-api
+#
+# kro expands it into Azure Service Operator objects, and ASO creates the Azure resources in the
+# apps resource group:
+#   - a managed identity, trusted by the app's existing service account (Workload Identity; an
+#     account can be trusted by several identities, and the app picks one by client ID),
+#   - a StorageV2 account with no keys (Entra ID only), no public blobs and TLS 1.2,
+#   - a blob container,
+#   - Storage Blob Data Contributor (or Reader) for that identity on that account only,
+#   - a ConfigMap "<name>-storage" with what the app needs to connect.
+# Deleting the AppStorage deletes the identity, its federation and the role assignment, but keeps
+# the storage account and its data in Azure (ADR-0003: data outlives its Kubernetes object).
+# Removing the data is a deliberate step in Azure.
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: appstorage.platform.bluepave.dev
+  annotations:
+    # The CRDs it builds on (ASO's) may not exist yet on the first sync.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: AppStorage
+    group: platform.bluepave.dev
+    spec:
+      serviceAccountName: string | required=true
+      container: string | default="data"
+      access: string | default="readWrite" enum="readWrite,readOnly"
+    status:
+      accountName: ${account.spec.azureName}
+      blobEndpoint: ${account.status.?primaryEndpoints.?blob.orValue("")}
+      clientId: ${identity.status.clientId}
+
+  resources:
+    # Per-environment values (subscription, resource group, cluster OIDC issuer), from the
+    # module's discovered outputs (templates/platform-settings.yaml).
+    - id: settings
+      externalRef:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: platform-settings
+          namespace: kro-system
+
+    - id: identity
+      template:
+        apiVersion: managedidentity.azure.com/v1api20230131
+        kind: UserAssignedIdentity
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+        spec:
+          azureName: ${"id-app-" + schema.metadata.namespace + "-" + schema.metadata.name}
+          location: ${settings.data.location}
+          owner:
+            armId: ${settings.data.appsResourceGroupId}
+      readyWhen:
+        - ${identity.status.?principalId.orValue("") != ""}
+
+    - id: federation
+      template:
+        apiVersion: managedidentity.azure.com/v1api20230131
+        kind: FederatedIdentityCredential
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+        spec:
+          owner:
+            name: ${identity.metadata.name}
+          audiences: ["api://AzureADTokenExchange"]
+          issuer: ${settings.data.oidcIssuer}
+          subject: ${"system:serviceaccount:" + schema.metadata.namespace + ":" + schema.spec.serviceAccountName}
+
+    - id: account
+      template:
+        apiVersion: storage.azure.com/v20250601
+        kind: StorageAccount
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            # Keep the account (and the data) in Azure when the AppStorage is deleted.
+            serviceoperator.azure.com/reconcile-policy: detach-on-delete
+        spec:
+          # Globally unique, 3-24 lowercase letters and digits: a hash of environment, namespace
+          # and name, so stages and environments never collide.
+          azureName: ${"st" + "%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name)])}
+          location: ${settings.data.location}
+          owner:
+            armId: ${settings.data.appsResourceGroupId}
+          kind: StorageV2
+          sku:
+            name: Standard_LRS
+          accessTier: Hot
+          allowBlobPublicAccess: false
+          allowSharedKeyAccess: false
+          defaultToOAuthAuthentication: true
+          minimumTlsVersion: TLS1_2
+          supportsHttpsTrafficOnly: true
+          publicNetworkAccess: Enabled
+      readyWhen:
+        - ${account.status.?provisioningState.orValue("") == "Succeeded"}
+
+    - id: blobService
+      template:
+        apiVersion: storage.azure.com/v20250601
+        kind: StorageAccountsBlobService
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            # A blob service can't be deleted on its own in Azure (it goes with the account), so
+            # ASO only lets the Kubernetes object go when it's detached.
+            serviceoperator.azure.com/reconcile-policy: detach-on-delete
+        spec:
+          owner:
+            name: ${account.metadata.name}
+          deleteRetentionPolicy:
+            enabled: true
+            days: 7
+
+    - id: container
+      template:
+        apiVersion: storage.azure.com/v20250601
+        kind: StorageAccountsBlobServicesContainer
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            # Deleting a container deletes its blobs: keep it with the account.
+            serviceoperator.azure.com/reconcile-policy: detach-on-delete
+        spec:
+          azureName: ${schema.spec.container}
+          owner:
+            name: ${blobService.metadata.name}
+          publicAccess: None
+
+    - id: access
+      template:
+        apiVersion: authorization.azure.com/v20220401
+        kind: RoleAssignment
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+        spec:
+          owner:
+            name: ${account.metadata.name}
+            group: storage.azure.com
+            kind: StorageAccount
+          principalId: ${identity.status.principalId}
+          # Required by the ABAC condition on ASO's RBAC Administrator role.
+          principalType: ServicePrincipal
+          roleDefinitionReference:
+            # Quoted: the ": " of the conditional would otherwise be read as YAML.
+            armId: '${"/subscriptions/" + settings.data.subscriptionId + "/providers/Microsoft.Authorization/roleDefinitions/" + (schema.spec.access == "readOnly" ? "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1" : "ba92f5b4-2d11-453d-a403-e96b0029c9fe")}'
+
+    - id: connection
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name + "-storage"}
+          namespace: ${schema.metadata.namespace}
+        data:
+          AZURE_STORAGE_ACCOUNT: ${account.spec.azureName}
+          AZURE_STORAGE_BLOB_ENDPOINT: ${account.status.?primaryEndpoints.?blob.orValue("")}
+          AZURE_STORAGE_CONTAINER: ${container.spec.azureName}
+          AZURE_STORAGE_CLIENT_ID: ${identity.status.clientId}

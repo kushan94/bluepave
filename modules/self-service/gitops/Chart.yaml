@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bluepave-self-service
+description: The gitops layer of the self-service module (ADR-0002, ADR-0003)
+type: application
+version: 0.1.0

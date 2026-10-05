@@ -1,0 +1,4 @@
+{{- /* Kept as a plain file: kro's ${...} expressions aren't Helm templates. */ -}}
+{{- if eq (include "ss.appStorage" .) "true" }}
+{{ .Files.Get "files/rgd-app-storage.yaml" }}
+{{- end }}

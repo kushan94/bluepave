@@ -68,6 +68,7 @@ resolved:
         - runtime-falco
         - edge-gateway
         - observability
+        - self-service
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -159,3 +160,11 @@ resolved:
       sources:
         - url: https://falcosecurity.github.io/charts
           type: helm
+    - name: self-service
+      version: 0.1.0
+      gitops: modules/self-service/gitops
+      sources:
+        - url: https://raw.githubusercontent.com/Azure/azure-service-operator/main/v2/charts
+          type: helm
+        - url: registry.k8s.io/kro/charts
+          type: oci

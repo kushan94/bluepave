@@ -1,0 +1,20 @@
+{{- /*
+Per-environment values the platform APIs read (externalRef). Rendered once `bluepave up` has
+recorded this module's outputs.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $ids := include "ss.ids" . | fromYaml }}
+{{- if $ids.appsResourceGroupId }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-settings
+  namespace: kro-system
+data:
+  subscriptionId: {{ $ctx.subscriptionId | quote }}
+  location: {{ $ctx.region | quote }}
+  appsResourceGroupId: {{ $ids.appsResourceGroupId | quote }}
+  oidcIssuer: {{ $ids.oidcIssuerUrl | quote }}
+  # Seed for globally unique names (storage accounts): differs per subscription and environment.
+  nameSeed: {{ printf "%s/%s" $ctx.subscriptionId $ctx.environment | quote }}
+{{- end }}
