@@ -3,6 +3,7 @@
 discovered:
   azure:
     tenantId: 00000000-0000-0000-0000-00000000000a
+    subscriptionId: 00000000-0000-0000-0000-00000000000f
   admins:
     groupObjectId: 00000000-0000-0000-0000-00000000000b
   ci:
@@ -15,3 +16,7 @@ discovered:
         keyVaultUri: https://kv-acme-dev-we-abcde.vault.azure.net/
       secrets-external:
         clientId: 00000000-0000-0000-0000-00000000000e
+      certificates:
+        clientId: 00000000-0000-0000-0000-000000000010
+        dnsZoneName: dev.platform.example.com
+        dnsZoneResourceGroup: rg-acme-global-we

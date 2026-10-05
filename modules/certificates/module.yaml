@@ -1,0 +1,18 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: certificates
+  description: cert-manager with Let's Encrypt issuers, solving DNS-01 challenges in Azure DNS with Workload Identity
+spec:
+  version: 0.1.0
+  requires: [aks, dns, gitops-argocd]
+  outputs: [clientId, dnsZoneName, dnsZoneResourceGroup]
+  sources:
+    - { url: https://charts.jetstack.io, type: helm }
+  config:
+    schema: config.schema.json
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

@@ -1,0 +1,28 @@
+# Base values for the cert-manager chart. templates/cert-manager.yaml adds scheduling.
+
+crds:
+  enabled: true
+  # Uninstalling the chart must not delete every Certificate in the cluster with the CRDs.
+  keep: true
+
+# DNS-01 challenges against Azure DNS with Workload Identity (no stored credentials). The
+# identity's client ID is set on the ClusterIssuers.
+podLabels:
+  azure.workload.identity/use: "true"
+serviceAccount:
+  labels:
+    azure.workload.identity/use: "true"
+
+resources:
+  requests: { cpu: 10m, memory: 64Mi }
+  limits: { memory: 256Mi }
+
+webhook:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+cainjector:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 256Mi }

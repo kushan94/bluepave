@@ -64,7 +64,7 @@ removed:
 | `domain`, `apexDomain` | `<env>.<dns.domain>` and `<dns.domain>` |
 | `github.owner`, `github.platformRepo` | From `bluepave.yaml` |
 | `gitops.repoURL`, `gitops.revision` | Where Argo CD reads the platform repository |
-| `tenantId`, `admins.group`, `admins.groupObjectId` | Discovered (empty before `bluepave up`) |
+| `tenantId`, `subscriptionId`, `admins.group`, `admins.groupObjectId` | Discovered (empty before `bluepave up`) |
 | `profile` | The profile's spec, plus `name` |
 | `modules` | Names of the enabled modules, to integrate with another module without reading its files |
 | `discovered` | This environment's IDs: `discovered.environments.<env>` |
@@ -73,7 +73,7 @@ removed:
 ### 4. Discovered IDs
 
 `.bluepave/discovered.yaml` layout:
-- `discovered.azure.tenantId`;
+- `discovered.azure.tenantId`, `discovered.azure.subscriptionId`;
 - `discovered.admins.groupObjectId`;
 - `discovered.ci.principalId`;
 - `discovered.environments.<env>.<module>.<name>`: a module's infra outputs (e.g.

@@ -1,0 +1,41 @@
+{{- $t := .Values.bluepave.scheduling.tolerations }}
+{{- $env := dict
+  "tolerations" $t
+  "webhook" (dict "tolerations" $t)
+  "cainjector" (dict "tolerations" $t)
+  "startupapicheck" (dict "tolerations" $t)
+}}
+{{- $values := mergeOverwrite (.Files.Get "files/cert-manager-values.yaml" | fromYaml) $env }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: cert-manager
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

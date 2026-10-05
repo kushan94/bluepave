@@ -61,6 +61,7 @@ resolved:
         - data-postgres
         - gitops-argocd
         - secrets-external
+        - certificates
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -78,8 +79,6 @@ resolved:
       version: 0.1.0
     - name: aks
       version: 0.1.0
-    - name: data-postgres
-      version: 0.1.0
     - name: dns
       version: 0.1.0
     - name: gitops-argocd
@@ -88,6 +87,14 @@ resolved:
       sources:
         - url: https://argoproj.github.io/argo-helm
           type: helm
+    - name: certificates
+      version: 0.1.0
+      gitops: modules/certificates/gitops
+      sources:
+        - url: https://charts.jetstack.io
+          type: helm
+    - name: data-postgres
+      version: 0.1.0
     - name: governance
       version: 0.1.0
     - name: keyvault

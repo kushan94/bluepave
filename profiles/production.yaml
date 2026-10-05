@@ -28,4 +28,4 @@ spec:
     cache: azureManagedRedis       # AppCache = Azure Managed Redis, Entra ID auth (ADR-0003)
   ingress: agc
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates]
