@@ -47,6 +47,18 @@ for profile in profiles/*.yaml; do
       --set environment="$env" > "$dir/root.yaml"
     kubeconform_ "$dir/root.yaml" || status=1
 
+    # App onboarding: each apps/*.yaml (and the test fixtures) with the values the root's apps
+    # ApplicationSet passes.
+    yq 'select(.kind == "ApplicationSet" and .metadata.name == "apps") | .spec.template.spec.source.helm.valuesObject' \
+      "$dir/root.yaml" > "$dir/apps.values.yaml"
+    for app in apps/*.yaml platform/charts/app-onboarding/tests/*.yaml; do
+      [[ -f $app ]] || continue
+      echo "== $name/$env: onboarding $app"
+      helm template onboarding platform/charts/app-onboarding --namespace argocd \
+        -f "$app" -f "$dir/apps.values.yaml" > "$dir/onboarding-$(basename "$app")"
+      kubeconform_ "$dir/onboarding-$(basename "$app")" || status=1
+    done
+
     # Each module Application: render its chart with the values the root gave it.
     for app in $(names "$dir/root.yaml" 'select(.kind == "Application")'); do
       # Select by kind too: a module may name an Application and, say, an HTTPRoute alike.

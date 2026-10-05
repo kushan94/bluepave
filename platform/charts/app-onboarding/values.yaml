@@ -1,0 +1,13 @@
+# The root chart's `apps` ApplicationSet renders this chart once per apps/<name>.yaml, with that
+# file as a values file (apiVersion, kind, metadata, spec; see api/v1alpha1/app.schema.json) and
+# the module context under `bluepave` (ADR-0002). These defaults only make `helm lint` work.
+bluepave:
+  environment: dev
+  admins: { groupObjectId: "" }
+  modules: []
+  discovered: {}
+metadata:
+  name: example
+spec:
+  stages: [{ name: dev }]
+  source: { repoURL: https://github.com/example/example, path: deploy/chart }

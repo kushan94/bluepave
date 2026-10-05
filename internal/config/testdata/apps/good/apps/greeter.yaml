@@ -1,0 +1,7 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata: { name: greeter }
+spec:
+  stages: [{ name: dev }, { name: staging }]
+  source: { repoURL: https://github.com/acme/greeter, path: deploy/chart }
+  delivery: { images: [api] }

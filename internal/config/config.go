@@ -25,8 +25,12 @@ type Platform struct {
 		Azure   struct {
 			Region string `yaml:"region"`
 		} `yaml:"azure"`
-		Environments []string                  `yaml:"environments"`
-		Modules      map[string]ModuleOverride `yaml:"modules"`
+		Environments []string `yaml:"environments"`
+		GitHub       struct {
+			Owner        string `yaml:"owner"`
+			PlatformRepo string `yaml:"platformRepo"`
+		} `yaml:"github"`
+		Modules map[string]ModuleOverride `yaml:"modules"`
 	} `yaml:"spec"`
 }
 

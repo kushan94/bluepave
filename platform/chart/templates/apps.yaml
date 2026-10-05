@@ -1,0 +1,57 @@
+{{- /*
+Apps on the platform. Onboarding an app is a Git change only: add apps/<name>.yaml
+(api/v1alpha1/app.schema.json; `bluepave validate` checks it). For each file,
+platform/charts/app-onboarding creates the app's namespaces on this cluster, its Argo CD project,
+one Application per stage, a quota for the platform APIs and the Kargo pipeline.
+*/ -}}
+{{- $context := include "bluepave.context" . | fromYaml }}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  # The controller puts a deletion finalizer on every Application it generates, so without this,
+  # removing an app's file would delete everything its onboarding created, namespaces and running
+  # workloads included. Decommissioning an app is deliberate: delete its namespaces and Kargo
+  # project, then its file.
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: {{ include "bluepave.repoURL" . | quote }}
+        revision: {{ .Values.gitops.revision | quote }}
+        files:
+          - path: apps/*.yaml
+  template:
+    metadata:
+      name: {{ `'onboarding-{{ .metadata.name }}'` }}
+      namespace: argocd
+    spec:
+      project: platform
+      source:
+        repoURL: {{ include "bluepave.repoURL" . | quote }}
+        targetRevision: {{ .Values.gitops.revision | quote }}
+        path: platform/charts/app-onboarding
+        helm:
+          releaseName: {{ `'{{ .metadata.name }}'` }}
+          valueFiles:
+            - {{ `'../../../apps/{{ .path.filename }}'` }}
+          valuesObject:
+            bluepave:
+              {{- toYaml $context | nindent 14 }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 10m

@@ -90,6 +90,9 @@ func load(file, root string) (*platform, error) {
 			problems = append(problems, err)
 		}
 	}
+	if _, err := config.LoadApps(root, p); err != nil {
+		problems = append(problems, err)
+	}
 	// A platform hostname belongs to one module: two listeners for one hostname would be ambiguous.
 	hostOwner := map[string]string{}
 	for _, m := range ordered {

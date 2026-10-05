@@ -1,0 +1,6 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata: { name: other }
+spec:
+  stages: [{ name: dev }, { name: dev }, { name: live, environment: prod }]
+  source: { repoURL: https://github.com/someone-else/app, path: deploy/chart }

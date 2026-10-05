@@ -1,0 +1,34 @@
+{{- $name := .Values.metadata.name }}
+{{- $root := . }}
+{{- range (include "onboarding.stages" . | fromYaml).stages }}
+---
+# Owned by the platform, not the app: admission policies (allowed images, signatures) and the
+# public gateway trust these labels, so the app's own Applications can't create or relabel it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "onboarding.namespace" (dict "app" $name "stage" .) }}
+  annotations:
+    # Never deleted by Argo CD: not when pruned, not when the onboarding Application is deleted.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    # Restricted Pod Security: non-root, no privilege escalation, seccomp, dropped capabilities.
+    pod-security.kubernetes.io/enforce: restricted
+    platform.bluepave.dev/app: {{ $name }}
+    platform.bluepave.dev/stage: {{ .name }}
+    {{- with $root.Values.spec.namespaceLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if has "self-service" $root.Values.bluepave.modules }}
+---
+# Platform APIs per namespace (ADR-0003): keeps one app from running up the bill.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: platform-apis
+  namespace: {{ include "onboarding.namespace" (dict "app" $name "stage" .) }}
+spec:
+  hard:
+    count/appstorages.platform.bluepave.dev: "2"
+{{- end }}
+{{- end }}
