@@ -5,14 +5,25 @@
   "description": "Everything an adopter decides about their platform. Nothing here is secret; discovered IDs live in .bluepave/discovered.yaml.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
   "properties": {
-    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
-    "kind": { "const": "Platform" },
+    "apiVersion": {
+      "const": "bluepave.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "Platform"
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "description": "The platform's name, shown in the portal and used in descriptions.",
@@ -24,7 +35,14 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["prefix", "profile", "azure", "dns", "github", "admins"],
+      "required": [
+        "prefix",
+        "profile",
+        "azure",
+        "dns",
+        "github",
+        "admins"
+      ],
       "properties": {
         "prefix": {
           "description": "Short prefix for every Azure resource name (rg-<prefix>-<env>-<region>-<role>). Lowercase letters and digits, 2-5 characters, so derived names stay within Azure limits.",
@@ -33,12 +51,18 @@
         },
         "profile": {
           "description": "Preset for sizing and features: trial (fits an Azure Free Trial), standard, production.",
-          "enum": ["trial", "standard", "production"]
+          "enum": [
+            "trial",
+            "standard",
+            "production"
+          ]
         },
         "azure": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["region"],
+          "required": [
+            "region"
+          ],
           "properties": {
             "region": {
               "description": "Azure region name, e.g. eastasia, westeurope.",
@@ -50,15 +74,24 @@
         "environments": {
           "description": "Clusters to create. dev hosts the dev and staging stages; prod is its own cluster.",
           "type": "array",
-          "items": { "enum": ["dev", "prod"] },
+          "items": {
+            "enum": [
+              "dev",
+              "prod"
+            ]
+          },
           "minItems": 1,
           "uniqueItems": true,
-          "default": ["dev"]
+          "default": [
+            "dev"
+          ]
         },
         "dns": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["domain"],
+          "required": [
+            "domain"
+          ],
           "properties": {
             "domain": {
               "description": "A domain you own. Apps get <app>.<env>.<domain>; the zone is created in Azure DNS and you delegate it at your registrar.",
@@ -70,7 +103,10 @@
         "github": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["owner", "platformRepo"],
+          "required": [
+            "owner",
+            "platformRepo"
+          ],
           "properties": {
             "owner": {
               "description": "GitHub user or organisation owning the platform and app repositories.",
@@ -92,7 +128,9 @@
         "admins": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["group"],
+          "required": [
+            "group"
+          ],
           "properties": {
             "group": {
               "description": "Entra ID group of platform admins: cluster admins, portal users, Kargo promoters. Created if missing.",
@@ -105,13 +143,19 @@
         "modules": {
           "description": "Turn modules on or off, and override their settings. Unlisted modules use the profile's default.",
           "type": "object",
-          "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{1,40}$"
+          },
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "enabled": { "type": "boolean" },
-              "settings": { "type": "object" }
+              "enabled": {
+                "type": "boolean"
+              },
+              "settings": {
+                "type": "object"
+              }
             }
           }
         },
@@ -121,10 +165,87 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["url", "ref"],
+            "required": [
+              "url",
+              "ref"
+            ],
             "properties": {
-              "url": { "type": "string", "pattern": "^https://" },
-              "ref": { "description": "A tag or commit, never a branch.", "type": "string", "minLength": 1 }
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "ref": {
+                "description": "A tag or commit, never a branch.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "network": {
+          "description": "Address spaces per environment. Defaults: dev hub 10.10.0.0/22, spoke 10.11.0.0/16; prod hub 10.20.0.0/22, spoke 10.21.0.0/16.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dev": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hubAddressPrefix": {
+                  "description": "Hub VNet (/22). Must not overlap the AKS pod (10.244.0.0/16) and service (10.0.0.0/16) ranges, or networks you peer with.",
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/22$"
+                },
+                "spokeAddressPrefix": {
+                  "description": "Spoke VNet (/16); subnets are carved from it.",
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/16$"
+                }
+              }
+            },
+            "prod": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hubAddressPrefix": {
+                  "description": "Hub VNet (/22). Must not overlap the AKS pod (10.244.0.0/16) and service (10.0.0.0/16) ranges, or networks you peer with.",
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/22$"
+                },
+                "spokeAddressPrefix": {
+                  "description": "Spoke VNet (/16); subnets are carved from it.",
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/16$"
+                }
+              }
+            }
+          }
+        },
+        "budget": {
+          "description": "Monthly cost budget per environment (billing currency); defaults to the profile's. Alerts at 50%, 80% and a 100% forecast go to subscription Owners and these addresses.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "monthly": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "dev": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "prod": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "contactEmails": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "email"
+              }
             }
           }
         }

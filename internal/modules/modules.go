@@ -23,12 +23,13 @@ type Module struct {
 		Description string `yaml:"description"`
 	} `yaml:"metadata"`
 	Spec struct {
-		Version  string            `yaml:"version"`
-		Requires []string          `yaml:"requires"`
-		Outputs  []string          `yaml:"outputs"`
-		Layers   map[string]string `yaml:"layers"`
-		Tests    string            `yaml:"tests"`
-		Config   *struct {
+		Version    string            `yaml:"version"`
+		InfraScope string            `yaml:"infraScope"`
+		Requires   []string          `yaml:"requires"`
+		Outputs    []string          `yaml:"outputs"`
+		Layers     map[string]string `yaml:"layers"`
+		Tests      string            `yaml:"tests"`
+		Config     *struct {
 			Schema string `yaml:"schema"`
 		} `yaml:"config"`
 	} `yaml:"spec"`
@@ -76,6 +77,9 @@ func load(v *schema.Validator, path string) (*Module, error) {
 		return nil, err
 	}
 	m.Dir = filepath.Dir(path)
+	if m.Spec.InfraScope == "" {
+		m.Spec.InfraScope = "environment"
+	}
 	var problems []error
 	paths := map[string]string{"spec.tests": m.Spec.Tests}
 	for layer, p := range m.Spec.Layers {

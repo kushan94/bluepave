@@ -21,14 +21,14 @@ change to one.
 
 1. Create `modules/<name>/module.yaml` (schema: `api/v1alpha1/module.schema.json`), with `docs/`
    and `tests/`.
-2. Run `go run ./cmd/bluepave modules` and `go run ./cmd/bluepave validate -f examples/bluepave.yaml`.
+2. Run `go run ./cmd/bluepave modules` and `go run ./cmd/bluepave validate -f bluepave.yaml`.
 3. Add the module to the profiles that should enable it by default.
 
 ## Development
 
 ```bash
 go test ./...
-go run ./cmd/bluepave validate -f examples/bluepave.yaml
+go run ./cmd/bluepave validate -f bluepave.yaml
 ```
 
 Commits follow the existing style: an imperative subject saying what changed, and a body saying

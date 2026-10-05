@@ -1,0 +1,12 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: governance
+  description: Subscription guardrails (allowed region, tag policies) and a cost budget per environment
+spec:
+  version: 0.1.0
+  infraScope: global
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests
