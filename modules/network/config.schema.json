@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "network module settings (bluepave.yaml spec.modules.network.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "allowedEgressFqdns": {
+      "description": "With egress: firewall, the FQDNs the cluster may reach on HTTPS besides Azure services (container registries, Git hosts used by add-ons). Replaces the default list.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 3 }
+    }
+  }
+}

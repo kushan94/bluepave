@@ -4,6 +4,8 @@
 
 // any(): optional fields (network, budget) may be absent; the CLI validates the file's schema.
 var platform = any(loadYamlContent('../../bluepave.yaml'))
+// IDs written by `bluepave up` (empty in a fresh repository).
+var discoveredIds = any(loadYamlContent('../../.bluepave/discovered.yaml'))
 var profiles = {
   trial: loadYamlContent('../../profiles/trial.yaml').spec
   standard: loadYamlContent('../../profiles/standard.yaml').spec
@@ -96,11 +98,20 @@ func resourceNames(env string, subscriptionId string) object => {
   rgData: 'rg-${prefix}-${env}-${regionCode}-data'
   logAnalytics: 'log-${prefix}-${env}-${regionCode}'
   monitorWorkspace: 'amw-${prefix}-${env}-${regionCode}'
-  containerRegistry: 'cr${prefix}${env}${regionCode}${take(uniqueString(subscriptionId), 5)}'
-  keyVault: 'kv-${prefix}-${env}-${regionCode}-${take(uniqueString(subscriptionId), 5)}'
   hubVnet: 'vnet-${prefix}-${env}-${regionCode}-hub'
   spokeVnet: 'vnet-${prefix}-${env}-${regionCode}-spoke'
+  nsgPrefix: 'nsg-${prefix}-${env}-${regionCode}'
+  natGateway: 'ng-${prefix}-${env}-${regionCode}'
+  natPublicIp: 'pip-${prefix}-${env}-${regionCode}-ng'
+  firewall: 'afw-${prefix}-${env}-${regionCode}'
+  firewallPolicy: 'afwp-${prefix}-${env}-${regionCode}'
+  firewallPublicIp: 'pip-${prefix}-${env}-${regionCode}-afw'
+  routeTable: 'rt-${prefix}-${env}-${regionCode}-spoke-egress'
   aksCluster: 'aks-${prefix}-${env}-${regionCode}'
+  // Globally unique: ACR allows only alphanumerics (5-50), Key Vault 3-24 characters.
+  containerRegistry: 'cr${prefix}${env}${regionCode}${take(uniqueString(subscriptionId, prefix, env), 5)}'
+  keyVault: 'kv-${prefix}-${env}-${regionCode}-${take(uniqueString(subscriptionId, prefix, env), 5)}'
+  postgres: 'psql-${prefix}-${env}-${regionCode}-${take(uniqueString(subscriptionId, prefix, env), 5)}'
 }
 
 var defaultNetwork = {
@@ -127,3 +138,45 @@ var environmentNames = platform.spec.?environments ?? ['dev']
 @export()
 @description('The public DNS domain (bluepave.yaml spec.dns.domain).')
 var dnsDomain = platform.spec.dns.domain
+
+@export()
+@description('Fixed subnet names, so modules can look subnets up with `existing`.')
+var subnetNames = {
+  firewall: 'AzureFirewallSubnet'
+  aksNodes: 'snet-aks-nodes'
+  aksApiServer: 'snet-aks-apiserver'
+  agc: 'snet-agc'
+  privateEndpoints: 'snet-private-endpoints'
+}
+
+@export()
+@description('Private DNS zones for every Private Link service the platform uses.')
+var privateDnsZoneNames = {
+  acr: 'privatelink.azurecr.io'
+  keyVault: 'privatelink.vaultcore.azure.net'
+  blob: 'privatelink.blob.${environment().suffixes.storage}'
+  postgres: 'privatelink.postgres.database.azure.com'
+  redis: 'privatelink.redis.azure.net'
+}
+
+@export()
+@description('Object ID of the platform admins group (discovered); empty before `bluepave up`.')
+var adminsGroupObjectId = discoveredIds.?admins.?groupObjectId ?? ''
+
+@export()
+@description('Object ID of the CI identity that deploys and publishes (discovered); empty before `bluepave up`.')
+var ciPrincipalId = discoveredIds.?ci.?principalId ?? ''
+
+@export()
+@description('One private endpoint in a subnet, registered in a private DNS zone (AVM privateEndpoints item).')
+func privateEndpoint(subnetId string, dnsZoneId string, tags object) object => {
+  subnetResourceId: subnetId
+  privateDnsZoneGroup: {
+    privateDnsZoneGroupConfigs: [{ privateDnsZoneResourceId: dnsZoneId }]
+  }
+  tags: tags
+}
+
+@export()
+@description('A module\'s settings from bluepave.yaml (spec.modules.<name>.settings), or {}.')
+func moduleSettings(name string) object => platform.spec.?modules[?name].?settings ?? {}

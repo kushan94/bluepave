@@ -1,0 +1,4 @@
+# IDs that `bluepave up` discovers or creates in Azure and GitHub, and that GitOps and Bicep read.
+# Written by the CLI and committed: they're identifiers, not secrets (secrets stay in Key Vault).
+# Empty until `bluepave up` has run; modules skip what depends on a missing ID.
+{}
