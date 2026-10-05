@@ -76,7 +76,10 @@ removed:
 - `discovered.azure.tenantId`;
 - `discovered.admins.groupObjectId`;
 - `discovered.ci.principalId`;
-- `discovered.environments.<env>.<module>.<id>`, e.g. `environments.dev.argocd.clientId`.
+- `discovered.environments.<env>.<module>.<name>`: a module's infra outputs (e.g.
+  `environments.dev.keyvault.keyVaultUri`) and IDs the CLI creates for it (e.g.
+  `environments.dev.gitops-argocd.clientId`). A module may read another module's entry only if it
+  requires that module, or checks that it's enabled.
 
 A module renders without its IDs (degraded, e.g. no SSO) so the first sync works before
 `bluepave up` has written them.

@@ -7,10 +7,13 @@ Argo CD, the platform's GitOps engine. It manages every enabled module from Git,
   release name and namespace, so Argo CD adopts the install and upgrades itself from Git after
   that.
 - **Microsoft Entra ID sign-in only:** local accounts and the admin password are off. Once
-  `bluepave up` has created the Entra app (`discovered.environments.<env>.argocd.clientId`),
+  `bluepave up` has created the Entra app (`discovered.environments.<env>.gitops-argocd.clientId`),
   argocd-server signs users in with Workload Identity, so no client secret exists. Before that,
   use `argocd --core`, which goes through your Entra-authenticated kubeconfig.
 - **Access:** the platform admins group is `role:admin`. Nobody else has access by default.
+- **Git access:** with `secrets-external` enabled, the platform's GitHub App is a credential
+  template for every `https://github.com/<owner>/...` repository. Argo CD mints short-lived
+  installation tokens from the App's key in Key Vault, so no personal token or deploy key exists.
 - **AKS:** ignores the namespace selectors that AKS adds to every admission webhook, which
   would otherwise show as OutOfSync forever.
 - **Served at** `https://argocd.<env>.<domain>` once the `edge-gateway` module is enabled. TLS

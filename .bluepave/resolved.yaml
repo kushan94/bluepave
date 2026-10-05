@@ -60,6 +60,7 @@ resolved:
         - aks
         - data-postgres
         - gitops-argocd
+        - secrets-external
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -91,3 +92,9 @@ resolved:
       version: 0.1.0
     - name: keyvault
       version: 0.1.0
+    - name: secrets-external
+      version: 0.1.0
+      gitops: modules/secrets-external/gitops
+      sources:
+        - url: https://charts.external-secrets.io
+          type: helm

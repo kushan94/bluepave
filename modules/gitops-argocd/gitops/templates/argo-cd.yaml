@@ -3,7 +3,7 @@ Argo CD manages itself: this Application has the release name and namespace that
 installs Argo CD with, so Argo CD adopts that install instead of fighting it.
 */ -}}
 {{- $ctx := .Values.bluepave }}
-{{- $clientId := (($ctx.discovered.argocd | default dict).clientId) | default "" }}
+{{- $clientId := ((index $ctx.discovered "gitops-argocd" | default dict).clientId) | default "" }}
 {{- $behindGateway := has "edge-gateway" $ctx.modules }}
 
 {{- $env := dict

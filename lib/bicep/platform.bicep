@@ -141,6 +141,20 @@ var environmentNames = platform.spec.?environments ?? ['dev']
 var dnsDomain = platform.spec.dns.domain
 
 @export()
+@description('Name of a workload identity (user-assigned managed identity) for an add-on or app, in rgAks.')
+func workloadIdentityName(env string, purpose string) string => 'id-${prefix}-${env}-${regionCode}-${purpose}'
+
+@export()
+@description('''A federated credential trusting tokens the cluster's OIDC issuer signs for one service account
+(AVM user-assigned-identity federatedIdentityCredentials item).''')
+func federatedCredential(issuer string, namespace string, serviceAccount string) object => {
+  name: '${namespace}-${serviceAccount}'
+  issuer: issuer
+  subject: 'system:serviceaccount:${namespace}:${serviceAccount}'
+  audiences: ['api://AzureADTokenExchange']
+}
+
+@export()
 @description('Fixed subnet names, so modules can look subnets up with `existing`.')
 var subnetNames = {
   firewall: 'AzureFirewallSubnet'

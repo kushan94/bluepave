@@ -2,5 +2,5 @@
 # Written by the CLI and committed: they're identifiers, not secrets (secrets stay in Key Vault).
 # Empty until `bluepave up` has run; modules skip what depends on a missing ID. Layout (ADR-0002):
 #   discovered.azure.tenantId, discovered.admins.groupObjectId, discovered.ci.principalId,
-#   discovered.environments.<env>.<module>.<id>
+#   discovered.environments.<env>.<module>.<output or ID>
 discovered: {}

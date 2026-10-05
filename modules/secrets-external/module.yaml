@@ -1,0 +1,16 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: secrets-external
+  description: External Secrets Operator syncing Key Vault secrets into the cluster, signed in with Workload Identity
+spec:
+  version: 0.1.0
+  requires: [aks, keyvault, gitops-argocd]
+  outputs: [clientId]
+  sources:
+    - { url: https://charts.external-secrets.io, type: helm }
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests
