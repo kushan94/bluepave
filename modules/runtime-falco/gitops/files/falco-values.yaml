@@ -1,0 +1,26 @@
+# Base values for the falco chart; templates/falco.yaml adds placement. A DaemonSet watches
+# syscalls with the modern eBPF probe (no kernel module) and logs alerts as JSON, e.g. a shell
+# spawned in a container, reads of sensitive files, package managers or network tools run inside
+# a running container.
+driver:
+  kind: modern_ebpf
+
+tty: false
+falco:
+  json_output: true
+  json_include_output_property: true
+  priority: notice
+
+# Container metadata comes from containerd on each node; the extra Kubernetes metadata
+# collector deployment is not needed at this size.
+collectors:
+  kubernetes:
+    enabled: false
+
+resources:
+  requests: { cpu: 25m, memory: 128Mi }
+  limits: { memory: 512Mi }
+
+# Runs on every node, whatever its taints.
+tolerations:
+  - operator: Exists
