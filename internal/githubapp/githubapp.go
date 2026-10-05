@@ -247,3 +247,22 @@ func randomState() (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
+
+// Delete deletes the App itself (DELETE /app, authenticated as the App). Its installations go with it.
+func Delete(ctx context.Context, client *http.Client, apiBase, jwt string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, strings.TrimSuffix(apiBase, "/")+"/app", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("deleting the GitHub App: %s", resp.Status)
+	}
+	return nil
+}

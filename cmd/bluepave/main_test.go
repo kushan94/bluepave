@@ -334,3 +334,106 @@ spec:
 		}
 	}
 }
+
+func TestStatus(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules", "apps"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ids := discovered.IDs{}
+	ids.SetOutputs("dev", "aks", map[string]any{"clusterName": "aks-1", "resourceGroupName": "rg-1"})
+	ids.SetOutputs("", "dns", map[string]any{"nameServers": []any{"ns1.example."}})
+	if err := ids.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	rec := &cmdrun.Recorder{Responses: map[string]string{
+		"az stack sub show": "succeeded",
+		"kubectl": `{"items": [
+			{"metadata": {"name": "root"}, "status": {"sync": {"status": "Synced"}, "health": {"status": "Healthy"}}},
+			{"metadata": {"name": "kargo"}, "status": {"sync": {"status": "OutOfSync"}, "health": {"status": "Progressing"}}}]}`,
+	}}
+	old := runner
+	runner = rec
+	defer func() { runner = old }()
+	var out, errOut bytes.Buffer
+	code := run([]string{"status", "-f", "../../bluepave.yaml", "-root", root}, &out, &errOut)
+	if code != 1 { // kargo isn't synced
+		t.Errorf("exit %d, want 1 (an application isn't healthy)", code)
+	}
+	for _, want := range []string{"dev/aks", "succeeded", "kargo", "OutOfSync", "https://portal.dev.platform.example.com", "ns1.example."} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("status lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestDown(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules", "apps"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ids := discovered.IDs{}
+	ids.Set("sub-1", "azure", "subscriptionId")
+	ids.SetOutputs("dev", "keyvault", map[string]any{"keyVaultName": "kv-1"})
+	if err := ids.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+	rec := &cmdrun.Recorder{Responses: map[string]string{
+		"az account show":         `{"id": "sub-1", "tenantId": "tenant-1"}`,
+		"az keyvault secret list": "1",
+		"az keyvault secret show --vault-name kv-1 --name github-app-private-key": keyPEM,
+		"az keyvault secret show --vault-name kv-1 --name github-app-id":          "77",
+		"az ad app list":           "app-x",
+		"az keyvault list-deleted": "1",
+	}}
+	deleted := false
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == "/app" && strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+			deleted = true
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}))
+	defer gh.Close()
+	oldRunner, oldFlow := runner, appFlow
+	runner = rec
+	appFlow = bootstrap.AppFlow{HTTP: gh.Client(), APIBase: gh.URL}
+	defer func() { runner, appFlow = oldRunner, oldFlow }()
+
+	var out, errOut bytes.Buffer
+	if code := run([]string{"down", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut); code != 0 {
+		t.Fatalf("exit %d: %s\n%s", code, errOut.String(), out.String())
+	}
+	if !deleted {
+		t.Error("the GitHub App wasn't deleted")
+	}
+	var stackDeletes []string
+	all := ""
+	for _, c := range rec.Calls {
+		all += c.String() + "\n"
+		if strings.HasPrefix(c.String(), "az stack sub delete") {
+			stackDeletes = append(stackDeletes, c.Args[4])
+		}
+	}
+	// Reverse order: the last environment module first, the global modules last.
+	if len(stackDeletes) == 0 || stackDeletes[0] != "bp-acme-dev-self-service" || stackDeletes[len(stackDeletes)-1] != "bp-acme-dns" {
+		t.Errorf("stack deletions: %v", stackDeletes)
+	}
+	for _, want := range []string{"az ad app delete --id app-x", "az keyvault purge --name kv-1", "gh variable delete BLUEPAVE_CLIENT_ID"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("no command %q", want)
+		}
+	}
+	if strings.Contains(all, "BEGIN RSA") {
+		t.Error("the App's key reached a command line")
+	}
+	back, _ := discovered.Load(root)
+	if len(back) != 0 {
+		t.Errorf("discovered not reset: %v", back)
+	}
+}

@@ -33,6 +33,8 @@ Usage:
                                                    the modules' Azure resources, Entra apps and secrets,
                                                    the platform's GitHub App, then Argo CD;
                                                    IDs go to .bluepave/discovered.yaml
+  bluepave status   [-f bluepave.yaml]              stacks, Argo CD applications and URLs
+  bluepave down     [-f bluepave.yaml] [-yes]       delete everything up created (asks first)
   bluepave modules  [-root .]                      list the available modules
   bluepave version
 `
@@ -55,6 +57,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return planCmd(args[1:], stdout, stderr)
 	case "up":
 		return upCmd(args[1:], stdout, stderr)
+	case "status":
+		return statusCmd(args[1:], stdout, stderr)
+	case "down":
+		return downCmd(args[1:], stdout, stderr)
 	case "modules":
 		return listModules(args[1:], stdout, stderr)
 	case "version", "--version":
@@ -74,6 +80,7 @@ type platform struct {
 	file    string
 	root    string
 	config  *config.Platform
+	profile *config.Profile
 	ordered []*modules.Module
 }
 
@@ -129,7 +136,7 @@ func load(file, root string) (*platform, error) {
 	if err := errors.Join(problems...); err != nil {
 		return nil, err
 	}
-	return &platform{file: file, root: root, config: p, ordered: ordered}, nil
+	return &platform{file: file, root: root, config: p, profile: prof, ordered: ordered}, nil
 }
 
 func validate(args []string, stdout, stderr io.Writer) int {
