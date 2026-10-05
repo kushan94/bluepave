@@ -1,0 +1,14 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: registry
+  description: Azure Container Registry with Entra ID only and per-repository permissions
+spec:
+  version: 0.1.0
+  infraScope: environment
+  requires: [monitoring, network]
+  outputs: [containerRegistryName, containerRegistryLoginServer]
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests

@@ -1,0 +1,14 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: keyvault
+  description: Key Vault with Entra ID (RBAC) only, for platform secrets synced by External Secrets
+spec:
+  version: 0.1.0
+  infraScope: environment
+  requires: [monitoring, network]
+  outputs: [keyVaultName, keyVaultUri]
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests
