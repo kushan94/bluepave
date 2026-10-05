@@ -22,3 +22,8 @@ discovered:
         dnsZoneResourceGroup: rg-acme-global-we
       delivery-kargo:
         clientId: 00000000-0000-0000-0000-000000000011
+      registry:
+        containerRegistryName: cracmedevweabcde
+        containerRegistryLoginServer: cracmedevweabcde.azurecr.io
+      policy-kyverno:
+        clientId: 00000000-0000-0000-0000-000000000012

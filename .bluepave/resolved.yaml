@@ -64,6 +64,7 @@ resolved:
         - certificates
         - delivery-kargo
         - rollouts
+        - policy-kyverno
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -113,6 +114,12 @@ resolved:
           type: oci
     - name: governance
       version: 0.1.0
+    - name: policy-kyverno
+      version: 0.1.0
+      gitops: modules/policy-kyverno/gitops
+      sources:
+        - url: https://kyverno.github.io/kyverno
+          type: helm
     - name: rollouts
       version: 0.1.0
       gitops: modules/rollouts/gitops

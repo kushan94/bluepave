@@ -1,0 +1,67 @@
+{{- $ctx := .Values.bluepave }}
+{{- $s := $ctx.scheduling }}
+{{- $ids := index $ctx.discovered "policy-kyverno" | default dict }}
+
+{{- /*
+Placement. Kyverno is in the path of pod creation in app namespaces (failurePolicy: Fail): if it's
+down, those pods are refused. Where the profile is highly available it runs three admission
+replicas on system nodes (tolerating their CriticalAddonsOnly taint). On trial the single system
+node has no CPU to spare, so one replica may run anywhere, Spot included; a Spot eviction then
+blocks new app pods until Kyverno is back, which is acceptable there.
+*/ -}}
+{{- $placement := dict "tolerations" $s.tolerations }}
+{{- if $s.highAvailability }}
+{{- $placement = dict
+  "nodeSelector" (dict "kubernetes.azure.com/mode" "system")
+  "tolerations" (list (dict "key" "CriticalAddonsOnly" "operator" "Exists" "effect" "NoSchedule"))
+}}
+{{- end }}
+
+{{- $sa := dict "annotations" dict }}
+{{- if $ids.clientId }}
+{{- $_ := set $sa.annotations "azure.workload.identity/client-id" $ids.clientId }}
+{{- end }}
+
+{{- $env := dict
+  "admissionController" (merge (dict
+    "replicas" (ternary 3 1 $s.highAvailability)
+    "rbac" (dict "serviceAccount" $sa)) $placement)
+  "reportsController" (merge (dict "rbac" (dict "serviceAccount" (deepCopy $sa))) (deepCopy $placement))
+  "crds" (dict "migration" (deepCopy $placement))
+  "webhooksCleanup" (deepCopy $placement)
+}}
+{{- $values := mergeOverwrite (.Files.Get "files/kyverno-values.yaml" | fromYaml) $env }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  annotations:
+    # Kyverno's large CRDs showed as OutOfSync forever with the client-side diff.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: kyverno
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

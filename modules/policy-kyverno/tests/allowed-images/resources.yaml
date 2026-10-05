@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata: { name: own-image, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: api, image: cracme.azurecr.io/anvil-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: allowed-image, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: api, image: cracme.azurecr.io/anvil-api:1.0.0 }
+    - { name: curl, image: docker.io/curlimages/curl:8.22.0 }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: other-app-image, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: api, image: cracme.azurecr.io/greeter-api:1.0.0 }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: other-registry, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: api, image: docker.io/library/nginx:1.29 }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: init-container-checked, namespace: anvil-dev }
+spec:
+  initContainers:
+    - { name: setup, image: docker.io/library/busybox:1.37 }
+  containers:
+    - { name: api, image: cracme.azurecr.io/anvil-api:1.0.0 }
