@@ -35,6 +35,7 @@ type Platform struct {
 		GitHub struct {
 			Owner        string `yaml:"owner"`
 			PlatformRepo string `yaml:"platformRepo"`
+			AppName      string `yaml:"appName"`
 		} `yaml:"github"`
 		Modules map[string]ModuleOverride `yaml:"modules"`
 	} `yaml:"spec"`

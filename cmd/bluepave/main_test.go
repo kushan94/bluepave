@@ -2,6 +2,19 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"time"
+
+	"github.com/kushan94/bluepave/internal/bootstrap"
+	"github.com/kushan94/bluepave/internal/githubapp"
 
 	"github.com/kushan94/bluepave/internal/discovered"
 	cmdrun "github.com/kushan94/bluepave/internal/run"
@@ -10,6 +23,22 @@ import (
 	"strings"
 	"testing"
 )
+
+// No test may reach a real browser or GitHub: the github-app step's flow fails unless a test
+// installs its own.
+func TestMain(m *testing.M) {
+	appFlow = bootstrap.AppFlow{
+		OpenURL: func(string) {},
+		NewCode: func(context.Context, githubapp.Flow) (string, error) {
+			return "", errors.New("tests must not start the GitHub App flow")
+		},
+		HTTP:    &http.Client{},
+		APIBase: "http://127.0.0.1:1",
+		Poll:    time.Millisecond,
+		Timeout: time.Second,
+	}
+	os.Exit(m.Run())
+}
 
 func TestValidateExample(t *testing.T) {
 	var out, errOut bytes.Buffer
@@ -204,6 +233,27 @@ func TestUpAll(t *testing.T) {
 	runner = rec
 	defer func() { runner = old }()
 
+	// The GitHub App: a fake browser flow, a real key, and a stand-in for GitHub's API.
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+	conversion, _ := json.Marshal(map[string]any{"id": 77, "slug": "acme-acme-platform", "client_id": "Iv1.test", "pem": keyPEM})
+	rec.Responses["gh api --method POST /app-manifests/code-1/conversions"] = string(conversion)
+	rec.Responses["gh api users/acme"] = "User"
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[{"id": 4242, "account": {"login": "acme"}}]`))
+	}))
+	defer gh.Close()
+	oldFlow := appFlow
+	appFlow = bootstrap.AppFlow{
+		OpenURL: func(string) {},
+		NewCode: func(context.Context, githubapp.Flow) (string, error) { return "code-1", nil },
+		HTTP:    gh.Client(), APIBase: gh.URL, Poll: time.Millisecond, Timeout: 5 * time.Second,
+	}
+	defer func() { appFlow = oldFlow }()
+
 	var out, errOut bytes.Buffer
 	if code := run([]string{"up", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d: %s\n%s", code, errOut.String(), out.String())
@@ -211,7 +261,7 @@ func TestUpAll(t *testing.T) {
 	var lines []string
 	for _, c := range rec.Calls {
 		line := c.String()
-		if strings.Contains(line, portalSecret) {
+		if strings.Contains(line, portalSecret) || strings.Contains(line, "PRIVATE KEY") {
 			t.Errorf("a secret reached a command line: %s", line)
 		}
 		lines = append(lines, line)
@@ -226,6 +276,8 @@ func TestUpAll(t *testing.T) {
 		"az keyvault secret set --vault-name kv-1 --name kargo-admin-password-hash --file",
 		"gh variable set BLUEPAVE_CLIENT_ID --repo acme/acme-platform --body app-1",
 		"gh variable set BLUEPAVE_REGISTRY --repo acme/acme-platform --body cr1.azurecr.io",
+		"az keyvault secret set --vault-name kv-1 --name github-app-private-key --file",
+		"az keyvault secret set --vault-name kv-1 --name github-app-installation-id --file",
 	} {
 		if !strings.Contains(all, want) {
 			t.Errorf("no command contains %q", want)
@@ -245,6 +297,8 @@ func TestUpAll(t *testing.T) {
 		"ci/principalId":                          "sp-1",
 		"environments/dev/gitops-argocd/clientId": "app-1",
 		"environments/dev/portal/appClientId":     "app-1",
+		"github/appId":                            "77",
+		"github/installationId":                   "4242",
 	} {
 		if got := ids.Get(strings.Split(path, "/")...); got != want {
 			t.Errorf("%s = %v, want %s", path, got, want)

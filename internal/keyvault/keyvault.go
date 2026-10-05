@@ -26,6 +26,13 @@ func (c Client) Has(ctx context.Context, name string) (bool, error) {
 	return strings.TrimSpace(string(out)) == "1", nil
 }
 
+// Get returns a secret's value. The caller must not print it.
+func (c Client) Get(ctx context.Context, name string) (string, error) {
+	out, err := c.Runner.Run(ctx, "az", "keyvault", "secret", "show", "--vault-name", c.Vault, "--name", name,
+		"--query", "value", "--output", "tsv")
+	return strings.TrimRight(string(out), "\r\n"), err
+}
+
 // Set stores a secret value.
 func (c Client) Set(ctx context.Context, name, value string) error {
 	f, err := os.CreateTemp("", "bluepave-secret-*")

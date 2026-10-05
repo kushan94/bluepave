@@ -6,13 +6,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/kushan94/bluepave/internal/bootstrap"
 	"github.com/kushan94/bluepave/internal/deploy"
 	"github.com/kushan94/bluepave/internal/discovered"
+	"github.com/kushan94/bluepave/internal/githubapp"
 	cmdrun "github.com/kushan94/bluepave/internal/run"
 )
 
@@ -81,7 +85,30 @@ func planCmd(args []string, stdout, stderr io.Writer) int {
 }
 
 // steps of `bluepave up`, in order.
-var steps = []string{"accounts", "infra", "identities"}
+var steps = []string{"accounts", "infra", "identities", "github-app"}
+
+// appFlow is how the github-app step reaches the user and GitHub; tests replace it.
+var appFlow = bootstrap.AppFlow{
+	OpenURL: func(url string) {
+		fmt.Fprintf(os.Stderr, "    open: %s\n", url)
+		openBrowser(url)
+	},
+	HTTP:    &http.Client{Timeout: 30 * time.Second},
+	APIBase: "https://api.github.com",
+	Poll:    5 * time.Second,
+	Timeout: 15 * time.Minute,
+	NewCode: func(ctx context.Context, f githubapp.Flow) (string, error) { return f.Code(ctx) },
+}
+
+// openBrowser tries the platform's opener; the URL is printed either way.
+func openBrowser(url string) {
+	for _, opener := range []string{"open", "xdg-open", "wslview"} {
+		if path, err := exec.LookPath(opener); err == nil {
+			_ = exec.Command(path, url).Start()
+			return
+		}
+	}
+}
 
 func upCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("up", flag.ContinueOnError)
@@ -146,6 +173,8 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 			err = deployStacks(ctx, stdout, stderr, pl, stacks, ids, *root)
 		case "identities":
 			err = boot.Identities(ctx)
+		case "github-app":
+			err = boot.GitHubApp(ctx, appFlow)
 		}
 		// Save after every step (infra also saves after every stack): a failure keeps the progress.
 		if saveErr := ids.Save(*root); saveErr != nil && err == nil {
