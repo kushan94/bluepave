@@ -1,0 +1,203 @@
+{{- $root := . }}
+{{- range $name, $c := .Values.components }}
+{{- if include "anvil.deployed" (dict "root" $root "name" $name) }}
+{{- /* The API is an Argo Rollout (canary) when enabled; the rest are Deployments. */}}
+{{- $rollout := and (eq $name "api") $root.Values.rollout.enabled }}
+---
+{{- if $rollout }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+{{- else }}
+apiVersion: apps/v1
+kind: Deployment
+{{- end }}
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "anvil.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $c.replicas }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "anvil.selector" $name | nindent 6 }}
+  {{- if $rollout }}
+  strategy:
+    canary:
+      # Rollouts points these Services at the canary and stable pods respectively.
+      canaryService: api-canary
+      stableService: api
+      steps:
+        # No traffic router: the weight is approximated by pod counts.
+        - setWeight: 50
+        {{- if $root.Values.rollout.analysis }}
+        # Smoke-test the canary pods directly; a failure aborts the rollout and scales the
+        # canary away, leaving the stable version serving.
+        - analysis:
+            templates:
+              - templateName: api-canary-smoke
+            args:
+              - name: url
+                value: http://api-canary:{{ $c.port }}
+        {{- else }}
+        - pause: { duration: 30s }
+        {{- end }}
+        - setWeight: 100
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "anvil.selector" $name | nindent 8 }}
+        {{- if ne $name "web" }}
+        # Workload Identity: tokens for the identities the platform APIs created.
+        azure.workload.identity/use: "true"
+        {{- end }}
+      annotations:
+        # Scraped by Azure Managed Prometheus (pod annotations, app namespaces).
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      {{- if ne $name "web" }}
+      serviceAccountName: {{ $root.Values.serviceAccountName }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with $root.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $root.Values.topologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "anvil.selector" $name | nindent 14 }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "anvil.selector" $name | nindent 14 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "anvil.image" (dict "root" $root "name" $name) }}
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: PORT
+              value: {{ $c.port | quote }}
+            {{- with $root.Values.telemetry.otlpEndpoint }}
+            # Traces go to the platform's OpenTelemetry Collector.
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ . | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: deployment.environment={{ $root.Release.Namespace }}
+            {{- end }}
+            {{- if eq $name "web" }}
+            - name: API_URL
+              value: http://api:{{ $root.Values.components.api.port }}
+            {{- else if eq $name "api" }}
+            - name: FAULT_INJECTION_RATE
+              value: {{ $root.Values.faultInjectionRate | quote }}
+            {{- end }}
+          {{- if ne $name "web" }}
+          # Connection settings from the platform APIs' ConfigMaps. The database is required: the
+          # pod waits until AppDatabase has created it. The cache and the archive are optional:
+          # the app runs without them (restart it once they exist to pick them up).
+          envFrom:
+            - configMapRef:
+                name: {{ $root.Values.database.name }}-database
+            {{- if $root.Values.cache.enabled }}
+            - configMapRef:
+                name: {{ $root.Values.cache.name }}-cache
+                optional: true
+            {{- end }}
+            {{- if and (eq $name "worker") $root.Values.archive.enabled }}
+            - configMapRef:
+                name: {{ $root.Values.archive.name }}-storage
+                optional: true
+            {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          {{- if eq $name "api" }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+          startupProbe:
+            # The API migrates the schema at start and waits for PostgreSQL.
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          {{- else if eq $name "web" }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          {{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "anvil.labels" $root | nindent 4 }}
+spec:
+  # Node drains (upgrades, scale-down) take at most one replica at a time.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "anvil.selector" $name | nindent 6 }}
+{{- end }}
+{{- /* Services exist from the start, so web can resolve api before the first promotion. */}}
+{{- $services := list $name }}
+{{- if and (eq $name "api") $root.Values.rollout.enabled }}{{ $services = append $services "api-canary" }}{{ end }}
+{{- if ne $name "worker" }}
+{{- range $svc := $services }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc }}
+  labels:
+    {{- include "anvil.labels" $root | nindent 4 }}
+spec:
+  selector:
+    {{- include "anvil.selector" $name | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $c.port }}
+      targetPort: http
+{{- end }}
+{{- end }}
+{{- end }}
+---
+# Exists from the start, so the platform APIs can trust it before the first deployment. No
+# client-ID annotation: the api and worker use several identities and name each one.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+automountServiceAccountToken: false

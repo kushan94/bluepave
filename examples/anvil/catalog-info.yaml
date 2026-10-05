@@ -1,0 +1,33 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: anvil
+  description: The bluepave example app - jobs on PostgreSQL, a cache and blob storage
+  annotations:
+    github.com/project-slug: __GITHUB_OWNER__/__PLATFORM_REPO__
+    backstage.io/source-location: url:https://github.com/__GITHUB_OWNER__/__PLATFORM_REPO__/tree/main/services/anvil/
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=anvil
+  links:
+    - url: https://anvil.__DOMAIN__
+      title: dev
+    - url: https://anvil-staging.__DOMAIN__
+      title: staging
+    - url: https://argocd.__DOMAIN__/applications/argocd/anvil-dev
+      title: Argo CD (dev)
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  providesApis: [anvil-jobs]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: anvil-jobs
+  description: Submit text jobs and read their results
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: platform-team
+  definition:
+    $text: ./api/openapi.yaml

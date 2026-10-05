@@ -5,7 +5,7 @@ Metrics, traces and dashboards for the platform and its apps.
 | Signal | Path |
 |---|---|
 | Metrics | The AKS managed Prometheus agent (wired by the `aks` module) scrapes the cluster, and every app stage namespace (`<app>-<stage>`) through `prometheus.io/*` pod annotations. Metrics go to the environment's Azure Monitor workspace (`monitoring`) |
-| Traces | Apps send OTLP to `otel-collector.observability:4317`. The collector forwards to Tempo, which keeps 24 hours on local disk |
+| Traces | Apps send OTLP to `otel-collector-opentelemetry-collector.observability:4317` (gRPC) or `:4318` (HTTP). The collector forwards to Tempo, which keeps 24 hours on local disk |
 | Dashboards | Grafana at `https://grafana.<env>.<domain>` (with `edge-gateway`), over managed Prometheus and Tempo. Dashboards are ConfigMaps labelled `grafana_dashboard` in `observability` (as code) |
 
 - **Grafana sign-in:** Microsoft Entra ID only (no login form, no local users). Only the platform

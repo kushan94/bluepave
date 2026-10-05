@@ -40,7 +40,10 @@ promoted, running app on AKS.**
 | `standard` | A team's dev/test platform | tbd |
 | `production` | Private cluster, Azure Firewall, private endpoints, zone redundancy | tbd |
 
-## Getting started (in progress)
+## Getting started
+
+**[docs/getting-started.md](docs/getting-started.md)** walks from an empty subscription to a
+running platform and a first app. In short:
 
 ```bash
 go run ./cmd/bluepave validate                   # check the configuration, module settings and apps/*.yaml
@@ -72,6 +75,11 @@ go run ./cmd/bluepave down                       # delete everything up created 
 first), the soft-deleted Key Vaults when the profile allows purging, and the repository variables.
 It keeps the admins group, which may have existed before the platform.
 ([docs/design/configuration.md](docs/design/configuration.md), section 8).
+
+## Examples
+
+[examples/anvil](examples/anvil/): a Go app (web, api, worker) using a database, a cache and blob
+storage from the platform APIs. Add it to your platform with `hack/add-example.sh anvil`.
 
 ## Contributing
 

@@ -1,0 +1,8 @@
+# Stage staging (namespace anvil-staging). Kargo writes the images below on every promotion.
+route:
+  hostname: anvil-staging.__DOMAIN__
+
+images:
+  web: { repository: "", tag: "", digest: "" }
+  api: { repository: "", tag: "", digest: "" }
+  worker: { repository: "", tag: "", digest: "" }

@@ -1,0 +1,85 @@
+:root {
+  --bg: #f6f8fb;
+  --surface: #ffffff;
+  --text: #1b2430;
+  --muted: #5b6878;
+  --border: #d9e0e8;
+  --accent: #0b6bcb;
+  --done: #1f7a3f;
+  --failed: #b42318;
+  --running: #9a6700;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f141a;
+    --surface: #171e26;
+    --text: #e6edf3;
+    --muted: #9aa7b4;
+    --border: #2b3540;
+    --accent: #58a6ff;
+    --done: #56d364;
+    --failed: #ff7b72;
+    --running: #e3b341;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px; }
+h1 { margin: 0 0 4px; font-size: 28px; }
+header p { margin: 0 0 24px; color: var(--muted); }
+
+form, section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+label { display: block; font-weight: 600; margin: 12px 0 6px; }
+label:first-child { margin-top: 0; }
+
+select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+button {
+  margin-top: 14px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#form-error { color: var(--failed); margin: 10px 0 0; }
+h2 { margin: 0 0 12px; font-size: 18px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+td:nth-child(4) { word-break: break-word; }
+tr[data-status="done"] td:nth-child(3) { color: var(--done); }
+tr[data-status="failed"] td:nth-child(3) { color: var(--failed); }
+tr[data-status="running"] td:nth-child(3),
+tr[data-status="queued"] td:nth-child(3) { color: var(--running); }
+#empty { color: var(--muted); margin: 8px 0 0; }

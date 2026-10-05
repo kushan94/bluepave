@@ -108,6 +108,10 @@ jobs:
       - name: Template tests
         run: hack/test-templates.sh
 
+      # The example apps, added as an adopter would (hack/add-example.sh), then checked.
+      - name: Example tests
+        run: hack/test-examples.sh
+
   infra:
     name: Module infra layers (Bicep)
     runs-on: ubuntu-latest
@@ -158,3 +162,14 @@ jobs:
     with:
       app: hello
       app-dir: hack/fixtures/hello
+
+  # The golden path on the example app (examples/anvil): Go checks, three images, chart scan.
+  golden-path-anvil:
+    name: Golden path (examples/anvil)
+    uses: ./.github/workflows/build-app.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      app: anvil
+      app-dir: examples/anvil

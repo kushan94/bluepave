@@ -1,7 +1,7 @@
 {{- /*
-Traces: apps send OTLP to the collector (otel-collector.observability:4317), which forwards to
-Tempo. Apps never talk to a tracing backend directly, so the backend can change without
-redeploying them.
+Traces: apps send OTLP to the collector (otel-collector-opentelemetry-collector.observability,
+4317 gRPC or 4318 HTTP), which forwards to Tempo. Apps never talk to a tracing backend directly,
+so the backend can change without redeploying them.
 */ -}}
 {{- $t := dict "tolerations" .Values.bluepave.scheduling.tolerations }}
 {{- $collector := mergeOverwrite (.Files.Get "files/otel-collector-values.yaml" | fromYaml) (deepCopy $t) }}

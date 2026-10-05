@@ -1,0 +1,78 @@
+# Defaults shared by every stage; per-stage values live next to the chart (../values-<stage>.yaml).
+
+# Written by Kargo when it promotes Freight to a stage (the pipeline app onboarding generates from
+# apps/anvil.yaml): each image's repository in the platform registry, its tag (the commit) and
+# digest. A component without a digest isn't deployed yet.
+images:
+  web: { repository: "", tag: "", digest: "" }
+  api: { repository: "", tag: "", digest: "" }
+  worker: { repository: "", tag: "", digest: "" }
+
+# The service account the api and worker run as. The platform APIs below create identities
+# trusted by it (one per API); the app picks each by client ID from the API's ConfigMap.
+serviceAccountName: api
+
+# Backing services, requested from the platform (self-service module, ADR-0003).
+database:
+  name: jobs                 # AppDatabase: PostgreSQL is the job queue (ConfigMap jobs-database)
+cache:
+  enabled: true
+  name: cache                # AppCache: cached reads and worker wake-ups (ConfigMap cache-cache)
+  size: small
+archive:
+  enabled: true
+  name: archive              # AppStorage: finished jobs as JSON blobs (ConfigMap archive-storage)
+
+telemetry:
+  # OTLP/HTTP endpoint of the platform's OpenTelemetry Collector (observability module); empty
+  # disables tracing.
+  otlpEndpoint: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
+
+# Public hostname on the platform's Gateway; empty means no public route.
+route:
+  hostname: ""
+  gateway:
+    name: public
+    namespace: gateway
+
+# Deploy the api as an Argo Rollouts canary (rollouts module).
+rollout:
+  enabled: true
+  # Smoke-test the canary before promoting it. The test pod runs curl, so this needs the image
+  # below in policy-kyverno's settings.allowedImages; off by default.
+  analysis: false
+  analysisImage: docker.io/curlimages/curl:8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
+
+# Share (0-1) of API requests that fail on purpose. Demo only: set it to see canary analysis
+# abort a bad release and roll back.
+faultInjectionRate: "0"
+
+components:
+  web:
+    port: 8080
+    replicas: 1
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 64Mi }
+  api:
+    port: 8080
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 48Mi }
+      limits: { memory: 128Mi }
+  worker:
+    port: 8081
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 48Mi }
+      limits: { memory: 128Mi }
+
+# Apps may run on Spot nodes where the platform has them.
+tolerations:
+  - key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
+    effect: NoSchedule
+
+# Spread replicas across zones (and nodes) when the cluster has them.
+topologySpread: true

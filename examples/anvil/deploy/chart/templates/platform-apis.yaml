@@ -1,0 +1,37 @@
+# Backing services from the platform (self-service module, ADR-0003). Each one creates its Azure
+# resources (or in-cluster cache), an identity trusted by the app's service account where needed,
+# the NetworkPolicy that lets this namespace reach it, and a ConfigMap with the connection
+# settings the workloads read (templates/workloads.yaml).
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppDatabase
+metadata:
+  name: {{ .Values.database.name }}
+  annotations:
+    # The API's CRD comes from the platform and may not exist on a first sync.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  serviceAccountName: {{ .Values.serviceAccountName }}
+{{- if .Values.cache.enabled }}
+---
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppCache
+metadata:
+  name: {{ .Values.cache.name }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  size: {{ .Values.cache.size }}
+{{- end }}
+{{- if .Values.archive.enabled }}
+---
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppStorage
+metadata:
+  name: {{ .Values.archive.name }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  serviceAccountName: {{ .Values.serviceAccountName }}
+  container: jobs
+  access: readWrite
+{{- end }}

@@ -147,11 +147,15 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	// The GitOps root reads the resolved module set: keep it current with bluepave.yaml.
+	// The GitOps root reads the resolved module set, and the portal the platform settings: keep
+	// both current with bluepave.yaml.
 	if r, err := render.Build(pl.root, pl.config, pl.ordered); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	} else if err := r.Write(filepath.Join(pl.root, render.Path), false); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	} else if err := render.WriteSettings(pl.config, filepath.Join(pl.root, filepath.Dir(render.Path), render.SettingsFile), false); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
