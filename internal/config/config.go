@@ -53,6 +53,9 @@ type Profile struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
 	Spec struct {
+		KeyVault struct {
+			PurgeProtection bool `yaml:"purgeProtection"`
+		} `yaml:"keyVault"`
 		Modules struct {
 			DefaultsEnabled []string `yaml:"defaultsEnabled"`
 		} `yaml:"modules"`

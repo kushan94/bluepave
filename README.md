@@ -63,7 +63,14 @@ repository):
    gitops-argocd module's values and applies the root Application. From then on Argo CD runs the
    platform from Git.
 
-`status` and `down` are next
+```bash
+go run ./cmd/bluepave status                     # stacks, Argo CD applications, URLs
+go run ./cmd/bluepave down                       # delete everything up created (asks for the platform's name)
+```
+
+`down` deletes the GitHub App, the Entra apps `up` created, every deployment stack (newest
+first), the soft-deleted Key Vaults when the profile allows purging, and the repository variables.
+It keeps the admins group, which may have existed before the platform.
 ([docs/design/configuration.md](docs/design/configuration.md), section 8).
 
 ## Contributing
