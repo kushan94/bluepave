@@ -30,6 +30,7 @@ gitops:
   repoURL: {{ include "bluepave.repoURL" . | quote }}
   revision: {{ .Values.gitops.revision | quote }}
 tenantId: {{ (($discovered.azure | default dict).tenantId) | default "" | quote }}
+subscriptionId: {{ (($discovered.azure | default dict).subscriptionId) | default "" | quote }}
 admins:
   group: {{ .Values.spec.admins.group | quote }}
   groupObjectId: {{ (($discovered.admins | default dict).groupObjectId) | default "" | quote }}

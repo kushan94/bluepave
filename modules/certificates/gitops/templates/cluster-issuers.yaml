@@ -1,0 +1,37 @@
+{{- /*
+Let's Encrypt via DNS-01: cert-manager proves control of <env>.<domain> by writing a TXT record in
+the zone, as the module's identity. letsencrypt-staging has generous rate limits for experiments;
+its certificates aren't trusted by browsers. Rendered once `bluepave up` has recorded the
+module's outputs.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $ids := index $ctx.discovered "certificates" | default dict }}
+{{- if and $ids.clientId $ctx.subscriptionId }}
+{{- range $name, $server := dict "letsencrypt" "https://acme-v02.api.letsencrypt.org/directory" "letsencrypt-staging" "https://acme-staging-v02.api.letsencrypt.org/directory" }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $name }}
+  annotations:
+    # The CRD comes with the cert-manager Application, which may sync after this chart.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  acme:
+    server: {{ $server }}
+    {{- with $.Values.settings.acmeEmail }}
+    email: {{ . | quote }}
+    {{- end }}
+    privateKeySecretRef:
+      name: {{ $name }}-account
+    solvers:
+      - dns01:
+          azureDNS:
+            subscriptionID: {{ $ctx.subscriptionId | quote }}
+            resourceGroupName: {{ $ids.dnsZoneResourceGroup | quote }}
+            hostedZoneName: {{ $ids.dnsZoneName | quote }}
+            environment: AzurePublicCloud
+            managedIdentity:
+              clientID: {{ $ids.clientId | quote }}
+{{- end }}
+{{- end }}

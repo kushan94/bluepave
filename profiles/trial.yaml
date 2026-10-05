@@ -38,4 +38,4 @@ spec:
   modules:
     # Modules this profile turns on by default. Filled in as modules are ported (design doc,
     # section 8); a profile only lists modules that exist.
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates]

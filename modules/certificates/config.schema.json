@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "certificates module settings (bluepave.yaml spec.modules.certificates.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "acmeEmail": {
+      "description": "Contact address registered with Let's Encrypt, for expiry and policy notices. Default: none.",
+      "type": "string",
+      "format": "email"
+    }
+  }
+}
