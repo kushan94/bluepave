@@ -1,0 +1,17 @@
+# Onboards anvil (services/anvil/): namespaces anvil-dev and anvil-staging, its Argo CD project,
+# and a Kargo pipeline that deploys each new set of images to dev and lets admins promote it to
+# staging. Freight is created when web, api and worker come from the same commit.
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata:
+  name: anvil
+  description: The bluepave example app - jobs on PostgreSQL, a cache and blob storage
+spec:
+  stages:
+    - { name: dev, environment: __ENVIRONMENT__ }
+    - { name: staging, environment: __ENVIRONMENT__ }
+  source:
+    repoURL: https://github.com/__GITHUB_OWNER__/__PLATFORM_REPO__
+    path: services/anvil/deploy/chart
+  delivery:
+    images: [web, api, worker]

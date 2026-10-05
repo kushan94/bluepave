@@ -1,0 +1,40 @@
+name: anvil
+
+# anvil (services/anvil/), the bluepave example app: checks, builds and scans its three images
+# with the golden path on every pull request. On main, where the platform's repository variables
+# exist (BLUEPAVE_*, set by `bluepave up`), they're also pushed and signed, and Kargo deploys them
+# to dev (apps/anvil.yaml).
+on:
+  pull_request:
+    paths: [services/anvil/**, .github/workflows/anvil.yml]
+  push:
+    branches: [main]
+    paths:
+      - services/anvil/**
+      - .github/workflows/anvil.yml
+      # Kargo's promotion commits and docs must not rebuild (a rebuild would be promoted again).
+      - '!services/anvil/deploy/values-*.yaml'
+      - '!services/anvil/**/*.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anvil-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: anvil
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: anvil
+      app-dir: services/anvil
+      publish: ${{ github.event_name == 'push' && vars.BLUEPAVE_REGISTRY != '' }}
+      registry: ${{ vars.BLUEPAVE_REGISTRY }}
+      azure-tenant-id: ${{ vars.BLUEPAVE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.BLUEPAVE_SUBSCRIPTION_ID }}
+      azure-client-id: ${{ vars.BLUEPAVE_CLIENT_ID }}

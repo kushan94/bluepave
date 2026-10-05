@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: Anvil Jobs API
+  version: "1.0"
+  description: >-
+    Submit small text jobs and read their results. The web front end proxies /api/ to this
+    service; the worker processes queued jobs. Served at https://anvil.<env>.<domain>/api/.
+servers:
+  - url: https://anvil.dev.example.com
+    description: dev
+  - url: https://anvil-staging.dev.example.com
+    description: staging
+paths:
+  /api/kinds:
+    get:
+      summary: Job kinds the worker can run
+      responses:
+        "200":
+          description: Kinds
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Kind" }
+  /api/jobs:
+    get:
+      summary: Recent jobs, newest first
+      responses:
+        "200":
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Job" }
+    post:
+      summary: Queue a job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, input]
+              properties:
+                kind: { $ref: "#/components/schemas/Kind" }
+                input: { type: string }
+      responses:
+        "201":
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "400":
+          description: Unknown kind or invalid input
+  /api/jobs/{id}:
+    get:
+      summary: One job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: The job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404":
+          description: No such job
+components:
+  schemas:
+    Kind:
+      type: string
+      enum: [wordcount, uppercase, reverse]
+    Job:
+      type: object
+      required: [id, kind, input, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        kind: { $ref: "#/components/schemas/Kind" }
+        input: { type: string }
+        status: { type: string, enum: [queued, running, done, failed] }
+        result: { type: string }
+        error: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }

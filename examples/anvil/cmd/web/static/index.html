@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anvil</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Anvil</h1>
+      <p>Submit a job; a worker on AKS picks it up from PostgreSQL and writes the result back.</p>
+    </header>
+
+    <form id="job-form">
+      <label for="kind">Operation</label>
+      <select id="kind" name="kind" required></select>
+
+      <label for="input">Text</label>
+      <textarea id="input" name="input" rows="4" maxlength="10000" required placeholder="Type something…"></textarea>
+
+      <button type="submit">Submit job</button>
+      <p id="form-error" role="alert" hidden></p>
+    </form>
+
+    <section aria-labelledby="recent">
+      <h2 id="recent">Recent jobs</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Operation</th><th>Status</th><th>Result</th><th>Created</th></tr>
+        </thead>
+        <tbody id="jobs"></tbody>
+      </table>
+      <p id="empty" hidden>No jobs yet.</p>
+    </section>
+  </main>
+</body>
+</html>

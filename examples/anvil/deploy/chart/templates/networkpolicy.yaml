@@ -1,0 +1,129 @@
+# Ingress is denied by default; only these paths are open:
+#   the platform's Gateway        -> web:8080 (the UI)
+#   web, canary analysis          -> api:8080
+#   kube-system (metrics agent)   -> any pod:9090
+# Kubelet probes aren't affected by NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-from-gateway
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvil.selector" "web" | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - { port: {{ .Values.components.web.port }}, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-from-web
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvil.selector" "api" | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "anvil.selector" "web" | nindent 14 }}
+        # Canary analysis jobs (templates/analysis.yaml).
+        - podSelector:
+            matchLabels:
+              anvil/smoke-test: "true"
+      ports:
+        - { port: {{ .Values.components.api.port }}, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metrics-from-kube-system
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { port: 9090, protocol: TCP }
+---
+# Egress, also denied by default:
+#   all pods     : DNS, this namespace on 8080 (web -> api, canary analysis -> api), the
+#                  OpenTelemetry Collector
+#   api, worker  : HTTPS to public addresses (Entra ID tokens, blob storage)
+# The database and the cache: the platform APIs add their own egress policies for this namespace.
+# Plain NetworkPolicy can't name domains, so "HTTPS out" is "port 443 outside the private ranges".
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-base
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - podSelector: {}
+      ports:
+        - { port: 8080, protocol: TCP }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+      ports:
+        - { port: 4317, protocol: TCP }
+        - { port: 4318, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-azure
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - { port: 443, protocol: TCP }

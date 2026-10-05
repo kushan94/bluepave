@@ -1,0 +1,62 @@
+{{- if and .Values.rollout.enabled .Values.rollout.analysis }}
+# Canary check run by Argo Rollouts during the api rollout: 20 requests straight to the canary
+# pods; any non-200 answer fails the analysis, which aborts the rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: api-canary-smoke
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: url
+  metrics:
+    - name: canary-smoke
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            ttlSecondsAfterFinished: 600
+            template:
+              metadata:
+                labels:
+                  anvil/smoke-test: "true"
+              spec:
+                restartPolicy: Never
+                automountServiceAccountToken: false
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 100
+                  seccompProfile:
+                    type: RuntimeDefault
+                {{- with .Values.tolerations }}
+                tolerations:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
+                containers:
+                  - name: smoke
+                    image: {{ .Values.rollout.analysisImage }}
+                    env:
+                      - name: URL
+                        value: "{{`{{args.url}}`}}"
+                    command:
+                      - sh
+                      - -c
+                      - |
+                        failures=0
+                        for i in $(seq 1 20); do
+                          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$URL/api/jobs?limit=1")
+                          [ "$code" = "200" ] || { failures=$((failures + 1)); echo "request $i: HTTP $code"; }
+                          sleep 1
+                        done
+                        echo "canary smoke test: $failures/20 failed"
+                        [ "$failures" -eq 0 ]
+                    resources:
+                      requests: { cpu: 10m, memory: 16Mi }
+                      limits: { memory: 32Mi }
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities:
+                        drop: [ALL]
+{{- end }}
