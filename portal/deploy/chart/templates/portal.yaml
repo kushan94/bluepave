@@ -1,0 +1,100 @@
+{{- define "portal.labels" -}}
+app.kubernetes.io/part-of: portal
+app.kubernetes.io/component: web
+{{- end }}
+# Its token is used for the Kubernetes tab; the portal module binds it to read-only RBAC.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portal
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "portal.labels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- with .Values.images.web.digest }}
+{{- $repository := required "images.web.repository is required (Kargo writes it)" $.Values.images.web.repository }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+  labels:
+    {{- include "portal.labels" $ | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "portal.labels" $ | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "portal.labels" $ | nindent 8 }}
+    spec:
+      serviceAccountName: portal
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: portal
+          image: {{ $repository }}@{{ . }}
+          ports:
+            - name: http
+              containerPort: 7007
+          env:
+            - name: HOME
+              value: /tmp
+          envFrom:
+            # AUTH_MICROSOFT_CLIENT_ID, AUTH_MICROSOFT_TENANT_ID (portal module)
+            - configMapRef:
+                name: portal-settings
+            # AUTH_MICROSOFT_CLIENT_SECRET, GITHUB_APP_ID, GITHUB_APP_CLIENT_ID, GITHUB_APP_PRIVATE_KEY
+            # (portal module, from Key Vault)
+            - secretRef:
+                name: portal-secrets
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+            # app-config.platform.yaml, rendered by the portal module from the platform's settings.
+            - { name: config, mountPath: /app/config, readOnly: true }
+          startupProbe:
+            httpGet: { path: /.backstage/health/v1/liveness, port: http }
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /.backstage/health/v1/liveness, port: http }
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: { path: /.backstage/health/v1/readiness, port: http }
+            periodSeconds: 10
+      volumes:
+        # SQLite and generated TechDocs; rebuilt on restart.
+        - name: data
+          emptyDir: { sizeLimit: 2Gi }
+        - name: tmp
+          emptyDir: { sizeLimit: 1Gi }
+        - name: config
+          configMap:
+            name: portal-config
+{{- end }}

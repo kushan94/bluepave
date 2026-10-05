@@ -1,0 +1,14 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  platform: example
+  environment: dev
+  prefix: ex
+  domain: dev.example.com
+  github: { owner: example, platformRepo: example }
+  gitops: { revision: main }
+  tenantId: ""
+  modules: []
+  discovered: {}
+  gateway: { name: public, namespace: gateway }
+settings: {}

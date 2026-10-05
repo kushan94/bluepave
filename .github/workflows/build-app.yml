@@ -184,9 +184,12 @@ jobs:
       - name: Kubernetes manifests (Trivy on the rendered chart)
         if: hashFiles(format('{0}/deploy/chart/Chart.yaml', inputs.app-dir)) != ''
         run: |
-          # A placeholder digest per component, as Kargo would write.
+          # A placeholder repository and digest per component, as Kargo would write (an azurecr.io
+          # name: Trivy flags images from registries it doesn't know).
           zero=sha256:$(printf '0%.0s' $(seq 64))
-          digests=$(for c in $(jq -r '.[]' <<<"$COMPONENTS"); do printf 'images.%s.digest=%s,' "$c" "$zero"; done)
+          digests=$(for c in $(jq -r '.[]' <<<"$COMPONENTS"); do
+            printf 'images.%s.repository=placeholder.azurecr.io/%s-%s,images.%s.digest=%s,' "$c" "${{ inputs.app }}" "$c" "$c" "$zero"
+          done)
           trivy config --quiet --severity MEDIUM,HIGH,CRITICAL --exit-code 1 \
             --helm-values "$APP_DIR/deploy/values-dev.yaml" \
             --helm-set "${digests%,}" \

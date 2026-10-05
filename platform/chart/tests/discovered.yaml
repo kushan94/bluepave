@@ -39,3 +39,7 @@ discovered:
         clientId: 00000000-0000-0000-0000-000000000016
         appsResourceGroupId: /subscriptions/00000000-0000-0000-0000-00000000000f/resourceGroups/rg-acme-dev-we-apps
         oidcIssuerUrl: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-00000000000a/00000000-0000-0000-0000-000000000017/
+      network:
+        apiServerSubnetPrefix: 10.11.4.0/28
+      portal:
+        appClientId: 00000000-0000-0000-0000-000000000018

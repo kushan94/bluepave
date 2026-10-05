@@ -127,8 +127,8 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 ### Modules to port (target set)
 
-Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`, `secrets-external`, `certificates`, `delivery-kargo`, `rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `observability`, `self-service` (AppStorage; AppCache and AppDatabase next). To do:
-`portal`; `self-service` AppCache and AppDatabase ([ADR-0003](../adr/0003-self-service-apis.md)). Each is added to the profiles that should enable it by default
+Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`, `secrets-external`, `certificates`, `delivery-kargo`, `rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `observability`, `self-service` (AppStorage; AppCache and AppDatabase next), `portal`. To do:
+`self-service` AppCache and AppDatabase ([ADR-0003](../adr/0003-self-service-apis.md)). Each is added to the profiles that should enable it by default
 when it lands.
 
 ## 9. Open decisions

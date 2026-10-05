@@ -1,0 +1,50 @@
+# The hosted portal. Loaded after app-config.yaml; maps are merged, arrays and scalars here replace
+# those there. The platform's own settings come last, from app-config.platform.yaml, which the
+# portal module renders and mounts (modules/portal): URLs, the GitHub App integration, catalog
+# locations, the cluster, home page links. Anything that's an array lives there entirely, since a
+# later file replaces an array whole. Secrets come from environment variables (Key Vault).
+app:
+  # Entra ID only. The guest provider refuses to run in production (NODE_ENV=production).
+  signInProviders: [microsoft]
+
+backend:
+  listen: ':7007'
+  # SQLite files on the pod's scratch volume: the catalog is rebuilt from Git on every start.
+  # Scaffolder task history is lost on restart.
+  database:
+    client: better-sqlite3
+    connection:
+      directory: /data/db
+
+auth:
+  environment: production
+  providers:
+    microsoft:
+      production:
+        clientId: ${AUTH_MICROSOFT_CLIENT_ID}
+        clientSecret: ${AUTH_MICROSOFT_CLIENT_SECRET}
+        tenantId: ${AUTH_MICROSOFT_TENANT_ID}
+        # Backstage maps the signed-in user to the catalog User whose graph.microsoft.com/user-id
+        # annotation is their Entra object ID (catalog/org.yaml).
+        signIn:
+          resolvers:
+            - resolver: userIdMatchingUserEntityAnnotation
+
+kubernetes:
+  # Only what the portal module's RBAC lets the portal read: no ConfigMaps or Secrets.
+  objectTypes: [pods, services, deployments, replicasets, horizontalpodautoscalers, jobs, cronjobs, ingresses, statefulsets, daemonsets, limitranges, resourcequotas]
+  customResources:
+    - group: argoproj.io
+      apiVersion: v1alpha1
+      plural: rollouts
+  serviceLocatorMethod:
+    type: multiTenant
+
+techdocs:
+  builder: local
+  generator:
+    runIn: local
+  publisher:
+    type: local
+    local:
+      publishDirectory: /data/techdocs

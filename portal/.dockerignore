@@ -1,0 +1,10 @@
+# The image builds from source (Dockerfile build stage); only local artifacts are left out.
+.git
+.yarn/cache
+.yarn/install-state.gz
+node_modules
+packages/*/node_modules
+packages/*/dist
+packages/*/dist-types
+dist-types
+*.local.yaml
