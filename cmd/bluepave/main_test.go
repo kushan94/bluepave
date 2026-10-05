@@ -85,6 +85,24 @@ func TestRender(t *testing.T) {
 			t.Errorf("resolved.yaml lacks %q:\n%s", want, data)
 		}
 	}
+	// The platform-settings entity, next to it.
+	data, err = os.ReadFile(filepath.Join(filepath.Dir(dst), "platform-settings.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"kind: Resource",
+		"name: platform-settings",
+		"bluepave.dev/github-owner: acme",
+		"bluepave.dev/platform-repo: acme-platform",
+		"bluepave.dev/revision: main",
+		"bluepave.dev/environment: dev",
+		"bluepave.dev/domain: dev.",
+	} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("platform-settings.yaml lacks %q:\n%s", want, data)
+		}
+	}
 }
 
 func TestSettingsChecked(t *testing.T) {

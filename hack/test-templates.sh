@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The portal's templates (modules/portal/templates), dry run: render each one the way Backstage
-# does, with the repository's bluepave.yaml as the platform settings, then check what a new service
-# would get:
+# does, with the repository's platform settings (.bluepave/platform-settings.yaml), then check
+# what a new service would get:
 # - no template expression is left (outside the workflow's own GitHub expressions);
 # - the onboarding file passes `bluepave validate`;
 # - the chart renders for every stage, with and without an image, and its objects validate;
@@ -19,9 +19,13 @@ trap cleanup EXIT
 echo "==> Renderer (nunjucks, pinned by package-lock.json)"
 (cd hack/render-template && npm ci --ignore-scripts --no-audit --no-fund --silent)
 
-owner=$(yq '.spec.github.owner' bluepave.yaml)
-repo=$(yq '.spec.github.platformRepo' bluepave.yaml)
-domain="dev.$(yq '.spec.dns.domain' bluepave.yaml)"
+# The platform settings the portal reads (`bluepave render`, .bluepave/platform-settings.yaml).
+settings=.bluepave/platform-settings.yaml
+annotation() { yq ".metadata.annotations[\"bluepave.dev/$1\"]" "$settings"; }
+owner=$(annotation github-owner)
+repo=$(annotation platform-repo)
+environment=$(annotation environment)
+domain=$(annotation domain)
 name=demo-svc
 digest=sha256:$(printf '%064d' 0)
 
@@ -34,11 +38,11 @@ for template in modules/portal/templates/*/template.yaml; do
     read -r publicRoute storage <<<"$options"
     out="$work/$lang-$publicRoute"
     echo "==> $lang (route $publicRoute, storage $storage) -> image $name-$component"
-    jq -n --arg name "$name" --arg owner "$owner" --arg repo "$repo" --arg domain "$domain" \
+    jq -n --arg name "$name" --arg owner "$owner" --arg repo "$repo" --arg domain "$domain" --arg environment "$environment" \
       --arg component "$component" --argjson publicRoute "$publicRoute" --argjson storage "$storage" \
       '{name: $name, description: "A \"demo\" service: tests the template", owner: "group:default/platform-team",
         publicRoute: $publicRoute, storage: $storage, component: $component,
-        githubOwner: $owner, platformRepo: $repo, environment: "dev", domain: $domain}' >"$work/values.json"
+        githubOwner: $owner, platformRepo: $repo, environment: $environment, domain: $domain}' >"$work/values.json"
     # The keys the template passes are exactly the ones the test sets.
     diff <(yq -o=json '.spec.steps[] | select(.action == "fetch:template") | .input.values | keys' "$template" | jq -c 'sort' | sort -u) \
       <(jq -c 'keys | sort' "$work/values.json")

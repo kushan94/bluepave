@@ -48,7 +48,7 @@ jobs:
       - name: Every module manifest is valid
         run: '"$RUNNER_TEMP/bluepave" modules'
 
-      - name: .bluepave/resolved.yaml is up to date
+      - name: .bluepave/ (resolved modules, platform settings) is up to date
         run: '"$RUNNER_TEMP/bluepave" render -check'
 
   gitops:
