@@ -1,0 +1,16 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: gitops-argocd
+  description: Argo CD, managing itself and every other module from Git, with Microsoft Entra ID sign-in only
+spec:
+  version: 0.1.0
+  requires: [aks]
+  sources:
+    - { url: https://argoproj.github.io/argo-helm, type: helm }
+  config:
+    schema: config.schema.json
+  layers:
+    gitops: gitops
+    docs: docs
+  tests: tests

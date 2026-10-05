@@ -1,0 +1,13 @@
+# Test fixture: a discovered.yaml after `bluepave up`, so tests render the paths that need IDs
+# (Entra ID sign-in, admin RBAC). The IDs are made up.
+discovered:
+  azure:
+    tenantId: 00000000-0000-0000-0000-00000000000a
+  admins:
+    groupObjectId: 00000000-0000-0000-0000-00000000000b
+  ci:
+    principalId: 00000000-0000-0000-0000-00000000000c
+  environments:
+    dev:
+      argocd:
+        clientId: 00000000-0000-0000-0000-00000000000d

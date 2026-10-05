@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gitops-argocd module settings (bluepave.yaml spec.modules.gitops-argocd.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "values": {
+      "description": "Extra values for the argo-cd Helm chart, merged last. An escape hatch: prefer a module change when the setting is useful to everyone.",
+      "type": "object"
+    }
+  }
+}

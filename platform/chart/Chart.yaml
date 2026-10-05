@@ -1,0 +1,7 @@
+apiVersion: v2
+name: bluepave-platform
+description: >-
+  The GitOps root of a bluepave platform: the platform Argo CD project and one Application per
+  enabled module with a gitops layer (ADR-0002).
+type: application
+version: 0.1.0

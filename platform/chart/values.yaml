@@ -1,0 +1,28 @@
+# The root Application (created by `bluepave up`) renders this chart with these values files, later
+# ones winning:
+#   ../../bluepave.yaml              the adopter's configuration (metadata, spec)
+#   ../../.bluepave/resolved.yaml    enabled modules, settings and profile (`bluepave render`)
+#   ../../.bluepave/discovered.yaml  IDs from `bluepave up`
+# and sets `environment`. The defaults below only make the chart render on its own (helm lint).
+
+# Which cluster this is: dev or prod.
+environment: dev
+
+gitops:
+  # Where Argo CD reads the platform repository. Default: https://github.com/<owner>/<platformRepo>.git
+  repoURL: ""
+  revision: main
+
+metadata:
+  name: example
+spec:
+  prefix: ex
+  azure: { region: westeurope }
+  dns: { domain: example.com }
+  github: { owner: example, platformRepo: example }
+  admins: { group: example-admins }
+
+resolved:
+  profile: trial
+  profileSpec: {}
+  modules: []

@@ -88,3 +88,12 @@ func flatten(e *jsonschema.ValidationError) []string {
 	}
 	return out
 }
+
+// ValidateValue validates an already-parsed value (e.g. a module's settings from bluepave.yaml).
+func (v *Validator) ValidateValue(value any) error {
+	data, err := yaml.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return v.ValidateYAML(data)
+}

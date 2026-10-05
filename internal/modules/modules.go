@@ -27,12 +27,41 @@ type Module struct {
 		InfraScope string            `yaml:"infraScope"`
 		Requires   []string          `yaml:"requires"`
 		Outputs    []string          `yaml:"outputs"`
+		Sources    []Source          `yaml:"sources"`
 		Layers     map[string]string `yaml:"layers"`
 		Tests      string            `yaml:"tests"`
 		Config     *struct {
 			Schema string `yaml:"schema"`
 		} `yaml:"config"`
 	} `yaml:"spec"`
+}
+
+// Source is a repository a module's gitops layer installs from.
+type Source struct {
+	URL  string `yaml:"url"`
+	Type string `yaml:"type"`
+}
+
+// ValidateSettings checks a module's settings from bluepave.yaml against its config schema. A
+// module without a schema takes no settings.
+func (m *Module) ValidateSettings(settings map[string]any) error {
+	if m.Spec.Config == nil {
+		if len(settings) > 0 {
+			return fmt.Errorf("module %q takes no settings", m.Metadata.Name)
+		}
+		return nil
+	}
+	v, err := schema.Load(os.DirFS(m.Dir), m.Spec.Config.Schema)
+	if err != nil {
+		return fmt.Errorf("module %q: %w", m.Metadata.Name, err)
+	}
+	if settings == nil {
+		settings = map[string]any{}
+	}
+	if err := v.ValidateValue(settings); err != nil {
+		return fmt.Errorf("spec.modules.%s.settings:\n%w", m.Metadata.Name, err)
+	}
+	return nil
 }
 
 // Discover loads every modules/*/module.yaml under root, validating each against the module

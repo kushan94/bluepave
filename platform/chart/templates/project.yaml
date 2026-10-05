@@ -1,0 +1,28 @@
+# Platform modules live in their own Argo CD project, which limits where they may come from: the
+# platform repository and the repositories enabled modules declare (module.yaml spec.sources).
+# App teams get separate projects with much narrower permissions (app onboarding).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Platform modules managed by bluepave
+  sourceRepos:
+    - {{ include "bluepave.repoURL" . | quote }}
+    {{- $seen := dict }}
+    {{- range .Values.resolved.modules }}
+    {{- range .sources }}
+    {{- if not (hasKey $seen .url) }}
+    {{- $_ := set $seen .url true }}
+    - {{ .url | quote }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  # Modules install CRDs, webhooks and cluster roles.
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

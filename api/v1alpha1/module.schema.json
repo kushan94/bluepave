@@ -69,6 +69,32 @@
           },
           "uniqueItems": true
         },
+        "sources": {
+          "description": "Repositories the gitops layer installs from, besides the platform repository. They become the platform Argo CD project's sourceRepos; OCI Helm registries also get an Argo CD repository entry.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "url",
+              "type"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 3
+              },
+              "type": {
+                "enum": [
+                  "helm",
+                  "oci",
+                  "git"
+                ]
+              }
+            }
+          },
+          "uniqueItems": true
+        },
         "config": {
           "type": "object",
           "additionalProperties": false,
@@ -97,7 +123,7 @@
               "pattern": "\\.bicep$"
             },
             "gitops": {
-              "description": "Folder with a Helm chart or an add-on definition.",
+              "description": "Folder with a Helm chart. It receives the module context under `bluepave` and the module's settings under `settings` (ADR-0002).",
               "type": "string"
             },
             "policies": {

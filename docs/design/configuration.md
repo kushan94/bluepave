@@ -62,8 +62,7 @@ They're identifiers, not secrets. Secrets stay in Key Vault.
 | Layer | Mechanism |
 |---|---|
 | Bicep (module infra layers) | `lib/bicep/platform.bicep` reads `bluepave.yaml`, the profiles and `.bluepave/discovered.yaml` with `loadYamlContent`; modules import names, tags and settings from it. |
-| GitOps (`platform/`) | `platform/clusters/<env>/` becomes a Helm chart, rendered by the root Argo CD Application with `bluepave.yaml` and `.bluepave/discovered.yaml` as values files. Every literal becomes a value. |
-| Add-on values | The per-add-on `values.generated.yaml` files come from the same two files, written by `bluepave up`. |
+| GitOps | The root chart `platform/chart` renders one Argo CD Application per enabled module from `bluepave.yaml`, `.bluepave/resolved.yaml` and `.bluepave/discovered.yaml`; each module's chart gets the module context ([ADR-0002](../adr/0002-gitops-layer.md)). |
 | Policies | The Kyverno signer identity and the registry prefix come from chart values. Releases pin the signer to `build-app.yml@refs/tags/v<major>.*`. |
 | Golden path | `build-app.yml` takes the registry, tenant and subscription as inputs. Adopters call `<owner>/<platformRepo>/.github/workflows/build-app.yml@v1`. |
 | Portal | A generic, signed image. Configuration (domain, owner, Entra app, catalog locations) is mounted as a ConfigMap rendered from the values. Templates take the owner and repository from the same values. |
@@ -117,7 +116,7 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 ## 8. Order of work
 
 1. **Configuration:** `bluepave.yaml` schema and validation; Bicep reads it; profiles.
-2. **GitOps chart:** `platform/clusters/<env>/` → `platform/chart` with values.
+2. **GitOps chart:** `platform/chart` and the module context (done, ADR-0002).
 3. **CLI:** preflight, up, status, down, folding in the seven Skyforge bootstrap scripts.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.
@@ -126,7 +125,7 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 ### Modules to port (target set)
 
-Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`. To do: `gitops-argocd`, `delivery-kargo`,
+Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`. To do: `delivery-kargo`,
 `rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `certificates`, `observability`,
 `self-service-appstorage`, `portal`. Each is added to the profiles that should enable it by default
 when it lands.
