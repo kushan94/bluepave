@@ -7,7 +7,7 @@ spec:
   version: 0.1.0
   infraScope: environment
   requires: [monitoring, network, registry]
-  outputs: [clusterName, oidcIssuerUrl, kubeletIdentityObjectId]
+  outputs: [clusterName, resourceGroupName, oidcIssuerUrl, kubeletIdentityObjectId]
   config:
     schema: config.schema.json
   layers:

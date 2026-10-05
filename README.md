@@ -59,8 +59,11 @@ repository):
    the portal's client secret in Key Vault.
 4. **github-app:** the platform's GitHub App. You confirm it once in the browser and install it
    on your account; its credentials go to Key Vault.
+5. **gitops:** once `bluepave.yaml` and `.bluepave/` are pushed to main, installs Argo CD with the
+   gitops-argocd module's values and applies the root Application. From then on Argo CD runs the
+   platform from Git.
 
-The GitOps bootstrap (Argo CD), `status` and `down` are next
+`status` and `down` are next
 ([docs/design/configuration.md](docs/design/configuration.md), section 8).
 
 ## Contributing

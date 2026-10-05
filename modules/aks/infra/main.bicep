@@ -104,5 +104,6 @@ module registryPull '../../../lib/bicep/registry-pull.bicep' = {
 }
 
 output clusterName string = cluster.outputs.name
+output resourceGroupName string = rg.name
 output oidcIssuerUrl string = cluster.outputs.oidcIssuerUrl
 output kubeletIdentityObjectId string = cluster.outputs.kubeletIdentityObjectId

@@ -227,7 +227,9 @@ func TestUpAll(t *testing.T) {
 		"az stack sub create": `{"outputs": {
 			"oidcIssuerUrl": {"value": "https://issuer.example/"},
 			"keyVaultName": {"value": "kv-1"},
-			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"}}}`,
+			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"},
+			"clusterName": {"value": "aks-1"},
+			"resourceGroupName": {"value": "rg-1"}}}`,
 	}}
 	old := runner
 	runner = rec
@@ -246,6 +248,22 @@ func TestUpAll(t *testing.T) {
 		w.Write([]byte(`[{"id": 4242, "account": {"login": "acme"}}]`))
 	}))
 	defer gh.Close()
+	// gitops: the checkout matches origin/main (git diff succeeds), and the charts render (canned).
+	rec.Responses["helm template root"] = `---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: module-gitops-argocd}
+spec: {source: {path: modules/gitops-argocd/gitops, helm: {valuesObject: {bluepave: {environment: dev}}}}}
+`
+	rec.Responses["helm template module"] = `---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: argo-cd}
+spec:
+  source: {repoURL: https://argoproj.github.io/argo-helm, chart: argo-cd, targetRevision: 10.9.6, helm: {releaseName: argo-cd, valuesObject: {dex: {enabled: false}}}}
+  destination: {namespace: argocd}
+`
+	rec.Responses["az keyvault secret show"] = "from-key-vault"
 	oldFlow := appFlow
 	appFlow = bootstrap.AppFlow{
 		OpenURL: func(string) {},
@@ -267,6 +285,16 @@ func TestUpAll(t *testing.T) {
 		lines = append(lines, line)
 	}
 	all := strings.Join(lines, "\n")
+	// Secrets reach kubectl on stdin; the root Application is applied last.
+	var applied []string
+	for _, c := range rec.Calls {
+		if c.Name == "kubectl" && len(c.Stdin) > 0 {
+			applied = append(applied, string(c.Stdin))
+		}
+	}
+	if len(applied) != 3 || !strings.Contains(applied[1], "githubAppPrivateKey: from-key-vault") || !strings.Contains(applied[2], "path: platform/chart") {
+		t.Errorf("kubectl stdin documents = %q", applied)
+	}
 	for _, want := range []string{
 		"az ad group member add --group group-1 --member-id user-1",
 		`"subject":"repo:acme/acme-platform:environment:dev"`,
@@ -278,6 +306,7 @@ func TestUpAll(t *testing.T) {
 		"gh variable set BLUEPAVE_REGISTRY --repo acme/acme-platform --body cr1.azurecr.io",
 		"az keyvault secret set --vault-name kv-1 --name github-app-private-key --file",
 		"az keyvault secret set --vault-name kv-1 --name github-app-installation-id --file",
+		"helm upgrade --install argo-cd argo-cd --repo https://argoproj.github.io/argo-helm --version 10.9.6 --namespace argocd",
 	} {
 		if !strings.Contains(all, want) {
 			t.Errorf("no command contains %q", want)

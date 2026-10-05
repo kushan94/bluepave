@@ -47,7 +47,7 @@ spec:
           utcOffset: "+08:00"
 ```
 
-**Outputs:** `clusterName`, `oidcIssuerUrl`, `kubeletIdentityObjectId`.
+**Outputs:** `clusterName`, `resourceGroupName`, `oidcIssuerUrl`, `kubeletIdentityObjectId`.
 
 ## Runbook
 
