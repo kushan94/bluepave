@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "data-postgres module settings (bluepave.yaml spec.modules.data-postgres.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "description": "PostgreSQL major version. Default: 18.",
+      "enum": ["16", "17", "18"]
+    },
+    "threatProtection": {
+      "description": "Microsoft Defender for open-source databases on the server (billed per server). Default: off in the trial profile, on otherwise.",
+      "type": "boolean"
+    },
+    "databases": {
+      "description": "Databases to create on the server (UTF-8). Default: none; apps' databases are listed here until app onboarding creates them.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+      "uniqueItems": true
+    },
+    "maintenanceWindow": {
+      "description": "When Azure may patch the server. Default: Sunday 02:00 UTC.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dayOfWeek": { "description": "0 = Sunday ... 6 = Saturday (UTC).", "type": "integer", "minimum": 0, "maximum": 6 },
+        "startHour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "startMinute": { "enum": [0, 30] }
+      }
+    }
+  }
+}

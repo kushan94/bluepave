@@ -61,7 +61,7 @@ They're identifiers, not secrets. Secrets stay in Key Vault.
 
 | Layer | Mechanism |
 |---|---|
-| Bicep stacks | `loadYamlContent('../../bluepave.yaml')` in `infra/config`. Profiles replace the dev/prod blocks. |
+| Bicep (module infra layers) | `lib/bicep/platform.bicep` reads `bluepave.yaml`, the profiles and `.bluepave/discovered.yaml` with `loadYamlContent`; modules import names, tags and settings from it. |
 | GitOps (`platform/`) | `platform/clusters/<env>/` becomes a Helm chart, rendered by the root Argo CD Application with `bluepave.yaml` and `.bluepave/discovered.yaml` as values files. Every literal becomes a value. |
 | Add-on values | The per-add-on `values.generated.yaml` files come from the same two files, written by `bluepave up`. |
 | Policies | The Kyverno signer identity and the registry prefix come from chart values. Releases pin the signer to `build-app.yml@refs/tags/v<major>.*`. |
@@ -74,15 +74,14 @@ They're identifiers, not secrets. Secrets stay in Key Vault.
 ```
 bluepave.yaml                 adopter's configuration (the only file to edit)
 .bluepave/discovered.yaml     IDs written by `bluepave up` (committed)
-cli/                          the bluepave command (Python, standard library only)
-infra/                        Bicep: config (profiles), modules, stacks
-platform/
-  chart/                      the GitOps root: Applications, ApplicationSets, policies, gateway
-  addons/<name>/              add-on defaults; per-profile overrides
-  charts/app-onboarding/      one app's namespaces, project, stages, generated Kargo pipeline
-  templates/                  portal templates (Go, Python)
+api/v1alpha1/                 the config API: JSON Schemas for bluepave.yaml, profiles, modules
+profiles/                     trial, standard, production
+cmd/bluepave/, internal/      the bluepave CLI (Go)
+lib/bicep/                    shared Bicep library: config, naming, tags (every infra layer imports it)
+modules/<name>/               one capability: module.yaml, infra/, gitops/, policies/, portal/, docs/, tests/
+platform/chart/               the GitOps root: one Argo CD Application per enabled module
 portal/                       Backstage (generic image)
-.github/workflows/            infra, platform, portal, build-app (the golden path)
+.github/workflows/            CI, build-app (the golden path)
 examples/                     anvil (Go, three services), pulse (Python), external-repo example
 docs/                         getting started, architecture, ADRs, runbooks, troubleshooting
 ```
@@ -127,7 +126,7 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 ### Modules to port (target set)
 
-Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`. To do: `data-postgres`, `gitops-argocd`, `delivery-kargo`,
+Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`. To do: `gitops-argocd`, `delivery-kargo`,
 `rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `certificates`, `observability`,
 `self-service-appstorage`, `portal`. Each is added to the profiles that should enable it by default
 when it lands.
