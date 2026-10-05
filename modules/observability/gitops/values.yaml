@@ -12,20 +12,18 @@ bluepave:
 settings: {}
 
 # The upstream charts. Bumped by module releases, after the end-to-end test.
-# grafana and tempo: grafana.github.io/helm-charts froze these charts on 2026-01-30 (deprecated, no
-# more fixes); they continue at grafana-community.github.io/helm-charts (grafana 13.x, tempo 3.x).
-# These are the versions proven in the reference instance; moving to the community charts is
-# tracked in docs (Upgrades) and must be proven there first.
+# grafana and tempo come from grafana-community: Grafana Labs moved the charts there on 2026-01-30
+# and froze the copies at grafana.github.io/helm-charts.
 upstream:
   otelCollector:
     repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
     chart: opentelemetry-collector
     version: 0.175.0
   tempo:
-    repoURL: https://grafana.github.io/helm-charts
+    repoURL: https://grafana-community.github.io/helm-charts
     chart: tempo
-    version: 1.24.4
+    version: 3.1.0
   grafana:
-    repoURL: https://grafana.github.io/helm-charts
+    repoURL: https://grafana-community.github.io/helm-charts
     chart: grafana
-    version: 10.5.15
+    version: 13.2.7

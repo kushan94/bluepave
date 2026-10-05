@@ -22,13 +22,13 @@ Metrics, traces and dashboards for the platform and its apps.
 
 ## Upgrades
 
-- **Grafana and Tempo charts are frozen upstream.** Grafana Labs moved them to
-  `grafana-community` on 2026-01-30, and the copies at `grafana.github.io/helm-charts` get no
-  more fixes. This module still pins the versions proven in the reference instance (grafana
-  10.5.15, Grafana 12.3; tempo 1.24.4, Tempo 2.9).
-- **The move is two major versions:** grafana 13.x and tempo 3.x. Our values already render with
-  grafana 13.2.7 and tempo 3.1.0 (checked with kubeconform). Running them needs the reference
-  instance first, before a module release switches.
+- **Charts come from `grafana-community`** (grafana 13.2.7 with Grafana 13.2, tempo 3.1.0 with
+  Tempo 3.1). Grafana Labs moved the charts there on 2026-01-30 and froze the copies at
+  `grafana.github.io/helm-charts`.
+- **Moving from Grafana 12 / Tempo 2.9** (module 0.1.x before this change) needs nothing: Grafana
+  keeps no state (users from Entra ID, dashboards from Git), and Tempo's traces are kept only
+  until a restart anyway. Tempo 3 runs as a single process with local storage, like before;
+  retention moved into its backend scheduler, which the chart configures.
 
 **Outputs:** `clientId`, `monitorWorkspaceQueryEndpoint`.
 
