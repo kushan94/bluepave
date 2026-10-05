@@ -1,0 +1,11 @@
+{{- /*
+Traces: apps send OTLP to the collector (otel-collector.observability:4317), which forwards to
+Tempo. Apps never talk to a tracing backend directly, so the backend can change without
+redeploying them.
+*/ -}}
+{{- $t := dict "tolerations" .Values.bluepave.scheduling.tolerations }}
+{{- $collector := mergeOverwrite (.Files.Get "files/otel-collector-values.yaml" | fromYaml) (deepCopy $t) }}
+{{ include "obs.application" (dict "name" "otel-collector" "upstream" .Values.upstream.otelCollector "values" $collector) }}
+---
+{{- $tempo := mergeOverwrite (.Files.Get "files/tempo-values.yaml" | fromYaml) (deepCopy $t) }}
+{{ include "obs.application" (dict "name" "tempo" "upstream" .Values.upstream.tempo "values" $tempo) }}

@@ -28,4 +28,4 @@ spec:
     cache: azureManagedRedis       # AppCache = Azure Managed Redis, Entra ID auth (ADR-0003)
   ingress: inCluster              # Envoy Gateway; Application Gateway for Containers (agc) isn't implemented yet
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco, edge-gateway]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco, edge-gateway, observability]

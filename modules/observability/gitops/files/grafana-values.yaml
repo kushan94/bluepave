@@ -1,0 +1,66 @@
+# Grafana: dashboards over managed Prometheus (metrics) and Tempo (traces).
+#   - sign-in: Entra ID only, using Workload Identity instead of a client secret
+#   - metrics: Azure Managed Prometheus, queried as a read-only workload identity
+#   - dashboards: ConfigMaps labelled grafana_dashboard in the observability namespace (as code)
+# templates/grafana.yaml adds the IDs (Entra app, identity, tenant, workspace URL) and the URL.
+
+podLabels:
+  azure.workload.identity/use: "true"
+
+serviceAccount:
+  name: grafana
+
+# Nothing to persist: users come from Entra ID and dashboards from Git.
+persistence:
+  enabled: false
+
+testFramework:
+  enabled: false
+
+resources:
+  requests: { cpu: 25m, memory: 128Mi }
+  limits: { memory: 384Mi }
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    searchNamespace: observability
+    folderAnnotation: grafana_folder
+    provider:
+      foldersFromFilesStructure: true
+  resources:
+    requests: { cpu: 5m, memory: 48Mi }
+    limits: { memory: 128Mi }
+
+grafana.ini:
+  auth:
+    disable_login_form: true
+    # Lets data sources use Azure authentication (here: Workload Identity).
+    azure_auth_enabled: true
+  auth.basic:
+    enabled: false
+  auth.azuread:
+    enabled: true
+    name: Microsoft Entra ID
+    allow_sign_up: true
+    auto_login: true
+    client_authentication: workload_identity
+    federated_credential_audience: api://AzureADTokenExchange
+    workload_identity_token_file: /var/run/secrets/azure/tokens/azure-identity-token
+    scopes: openid email profile
+    use_pkce: true
+    # Who may sign in is decided by group: allowed_groups admits only the platform admins group.
+    # Grafana's Entra provider would take roles from Entra *App Roles* (the token's roles claim),
+    # which needs Entra ID P1 to assign to groups, so don't require a role claim...
+    role_attribute_strict: false
+  users:
+    # ...and give everyone who gets past allowed_groups the Admin role.
+    auto_assign_org_role: Admin
+  azure:
+    workload_identity_enabled: true
+    workload_identity_token_file: /var/run/secrets/azure/tokens/azure-identity-token
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+    check_for_plugin_updates: false

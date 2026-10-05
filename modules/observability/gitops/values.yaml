@@ -1,0 +1,31 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  domain: dev.example.com
+  tenantId: ""
+  admins: { group: example-admins, groupObjectId: "" }
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [], highAvailability: true }
+  gateway: { name: public, namespace: gateway }
+settings: {}
+
+# The upstream charts. Bumped by module releases, after the end-to-end test.
+# grafana and tempo: grafana.github.io/helm-charts froze these charts on 2026-01-30 (deprecated, no
+# more fixes); they continue at grafana-community.github.io/helm-charts (grafana 13.x, tempo 3.x).
+# These are the versions proven in the reference instance; moving to the community charts is
+# tracked in docs (Upgrades) and must be proven there first.
+upstream:
+  otelCollector:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    version: 0.175.0
+  tempo:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    version: 1.24.4
+  grafana:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    version: 10.5.15

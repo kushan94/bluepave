@@ -7,7 +7,7 @@ admission policies: those decide what may start, and Falco watches what it then 
 
 - **Modern eBPF probe:** no kernel module, so it works on AKS's Azure Linux nodes as they are.
 - **Alerts are JSON on stdout** (priority `notice` and above): `kubectl logs -n falco ds/falco`.
-  The `observability` module ships them on.
+  They stay in the pod logs; shipping them to a SIEM is up to the adopter.
 - **Placement:** where the profile is highly available, Falco runs on every node, whatever its
   taints. On `trial`, it runs on the user nodes only (all apps run there), because the single
   system node has no CPU to spare.

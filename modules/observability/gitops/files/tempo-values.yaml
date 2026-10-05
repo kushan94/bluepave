@@ -1,0 +1,9 @@
+# Grafana Tempo (single binary): stores traces for 24 hours on local disk. Cheap and enough for
+# debugging; traces don't survive a pod restart, which is acceptable for this platform.
+# Apps send OTLP through the OpenTelemetry Collector; the chart's other receivers (Jaeger,
+# OpenCensus) stay at their defaults and are only reachable inside the cluster.
+tempo:
+  retention: 24h
+  resources:
+    requests: { cpu: 25m, memory: 128Mi }
+    limits: { memory: 512Mi }

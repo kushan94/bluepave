@@ -1,0 +1,41 @@
+# OpenTelemetry Collector: receives traces from the apps (OTLP) and forwards them to Tempo.
+# Apps never talk to a tracing backend directly, so the backend can change without redeploying them.
+mode: deployment
+image:
+  repository: otel/opentelemetry-collector-k8s
+
+config:
+  receivers:
+    # Only OTLP; the chart's defaults also open Jaeger, Zipkin and Prometheus receivers.
+    jaeger: null
+    zipkin: null
+    prometheus: null
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.observability.svc.cluster.local:4317
+      tls:
+        insecure: true # in-cluster hop
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]
+      metrics: null
+      logs: null
+
+ports:
+  jaeger-compact: { enabled: false }
+  jaeger-thrift: { enabled: false }
+  jaeger-grpc: { enabled: false }
+  zipkin: { enabled: false }
+
+resources:
+  requests: { cpu: 25m, memory: 64Mi }
+  limits: { memory: 256Mi }

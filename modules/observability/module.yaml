@@ -1,0 +1,19 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: observability
+  description: Traces (OpenTelemetry Collector, Tempo) and Grafana over managed Prometheus, with Entra ID sign-in
+spec:
+  version: 0.1.0
+  requires: [aks, monitoring, gitops-argocd]
+  outputs: [clientId, monitorWorkspaceQueryEndpoint]
+  sources:
+    - { url: https://open-telemetry.github.io/opentelemetry-helm-charts, type: helm }
+    - { url: https://grafana.github.io/helm-charts, type: helm }
+  hostnames:
+    - { name: grafana, namespace: observability }
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

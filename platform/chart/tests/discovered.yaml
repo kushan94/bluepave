@@ -31,3 +31,7 @@ discovered:
         clientId: 00000000-0000-0000-0000-000000000013
         dnsZoneName: dev.platform.example.com
         dnsZoneResourceGroup: rg-acme-global-we
+      observability:
+        clientId: 00000000-0000-0000-0000-000000000014
+        appClientId: 00000000-0000-0000-0000-000000000015
+        monitorWorkspaceQueryEndpoint: https://amw-acme-dev-we-abcd.westeurope.prometheus.monitor.azure.com

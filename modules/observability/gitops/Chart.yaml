@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bluepave-observability
+description: The gitops layer of the observability module (ADR-0002)
+type: application
+version: 0.1.0
