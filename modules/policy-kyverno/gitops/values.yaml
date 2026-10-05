@@ -1,0 +1,15 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  github: { owner: example, platformRepo: example }
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [], highAvailability: true }
+settings: {}
+
+# The upstream chart. Bumped by module releases, after the end-to-end test.
+upstream:
+  repoURL: https://kyverno.github.io/kyverno
+  chart: kyverno
+  version: 3.9.1

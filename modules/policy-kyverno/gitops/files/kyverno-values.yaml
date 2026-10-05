@@ -1,0 +1,32 @@
+# Base values for the kyverno chart. templates/kyverno.yaml adds the identity's client ID, replicas
+# and placement. Only the parts used here run: the admission controller and the reports controller.
+admissionController:
+  # Reads image signatures from ACR with Workload Identity.
+  podLabels:
+    azure.workload.identity/use: "true"
+  rbac:
+    serviceAccount:
+      name: kyverno-admission-controller
+  container:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 384Mi }
+
+# Not used: no generate/mutate-existing policies, no cleanup policies.
+backgroundController:
+  enabled: false
+cleanupController:
+  enabled: false
+
+# Policy reports (Audit results) for kubectl get policyreport. Background scans verify signatures
+# too, so it reads ACR with the same Workload Identity.
+reportsController:
+  enabled: true
+  podLabels:
+    azure.workload.identity/use: "true"
+  rbac:
+    serviceAccount:
+      name: kyverno-reports-controller
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 256Mi }

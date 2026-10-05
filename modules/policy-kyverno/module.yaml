@@ -1,0 +1,18 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: policy-kyverno
+  description: Admission control for app namespaces - only images signed by the golden path, and only each app's own images
+spec:
+  version: 0.1.0
+  requires: [aks, registry, gitops-argocd]
+  outputs: [clientId]
+  sources:
+    - { url: https://kyverno.github.io/kyverno, type: helm }
+  config:
+    schema: config.schema.json
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

@@ -1,0 +1,7 @@
+# Values the tests render the module chart with (made-up registry and repository).
+bluepave:
+  github: { owner: acme, platformRepo: acme-platform }
+  discovered:
+    registry: { containerRegistryLoginServer: cracme.azurecr.io }
+settings:
+  allowedImages: [docker.io/curlimages/curl:8.22.0]

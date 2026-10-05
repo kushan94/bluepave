@@ -1,0 +1,16 @@
+# What the CLI can't see on its own: the app namespace and its onboarding label.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Value
+metadata:
+  name: values
+namespaceSelector:
+  - name: anvil-dev
+    labels:
+      platform.bluepave.dev/app: anvil
+namespaces:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: anvil-dev
+      labels:
+        platform.bluepave.dev/app: anvil

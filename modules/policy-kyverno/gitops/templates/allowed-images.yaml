@@ -1,0 +1,54 @@
+{{- /*
+App namespaces may only run their own images from the platform registry, <registry>/<app>-*, plus
+the exact references in settings.allowedImages. That keeps unsigned images from other registries
+out (the signature policy only looks at the platform registry) and stops one app from running
+another app's images. A native ValidatingAdmissionPolicy (CEL), evaluated by the API server
+itself. Rendered once the registry's login server is discovered.
+*/ -}}
+{{- $registry := include "kyverno.registry" . }}
+{{- if $registry }}
+{{- $label := include "kyverno.appLabel" . }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: app-allowed-images
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  variables:
+    - name: images
+      expression: >-
+        object.spec.containers.map(c, c.image) +
+        (has(object.spec.initContainers) ? object.spec.initContainers.map(c, c.image) : []) +
+        (has(object.spec.ephemeralContainers) ? object.spec.ephemeralContainers.map(c, c.image) : [])
+    - name: prefix
+      expression: >-
+        {{ printf "'%s/' + namespaceObject.metadata.labels['%s'] + '-'" $registry $label }}
+    - name: allowed
+      expression: {{ (printf "%s" (.Values.settings.allowedImages | default list | toJson)) | quote }}
+    - name: denied
+      expression: >-
+        variables.images.filter(i, !i.startsWith(variables.prefix) && !(i in variables.allowed))
+  validations:
+    - expression: size(variables.denied) == 0
+      messageExpression: >-
+        'images must come from ' + variables.prefix + '*; got: ' + variables.denied.join(', ')
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: app-allowed-images
+spec:
+  policyName: app-allowed-images
+  validationActions: [Deny, Audit]
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+        - key: {{ $label }}
+          operator: Exists
+{{- end }}

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bluepave-policy-kyverno
+description: The gitops layer of the policy-kyverno module (ADR-0002)
+type: application
+version: 0.1.0

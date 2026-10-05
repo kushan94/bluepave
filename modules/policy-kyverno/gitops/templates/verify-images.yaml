@@ -1,0 +1,53 @@
+{{- /*
+Every image from the platform registry in an app namespace must carry a Cosign signature made by
+the golden path: a short-lived certificate from GitHub's OIDC issuer (keyless, recorded in Rekor)
+naming the platform repository's build-app.yml. An image signed by anything else (another
+repository, a branch build, a laptop) is rejected. Kyverno reads the signatures from the registry
+with Workload Identity. Rendered once the registry's login server is discovered.
+*/ -}}
+{{- $registry := include "kyverno.registry" . }}
+{{- if $registry }}
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: verify-app-images
+  annotations:
+    # The CRD comes with the kyverno Application, which may sync after this chart.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  validationActions: [{{ .Values.settings.signatureAction | default "Deny" }}]
+  failurePolicy: Fail
+  # A cold check (registry token, Sigstore trust root, signature fetch) took 9 s in the reference
+  # instance, close to the 10 s default; 30 s is the API server's maximum.
+  webhookConfiguration:
+    timeoutSeconds: 30
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: {{ include "kyverno.appLabel" . }}
+          operator: Exists
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  matchImageReferences:
+    # Every image from the platform registry; app-allowed-images limits each app to its own.
+    - glob: {{ printf "%s/*" $registry | quote }}
+  credentials:
+    providers: [azure]
+  attestors:
+    - name: pipeline
+      cosign:
+        keyless:
+          # One identity with a regex: Kyverno's cosign verifier refuses a list of identities.
+          identities:
+            - subjectRegExp: {{ include "kyverno.signerSubject" . | quote }}
+              issuer: https://token.actions.githubusercontent.com
+        ctlog:
+          url: https://rekor.sigstore.dev
+  validations:
+    - expression: >-
+        images.containers.map(image, verifyImageSignatures(image, [attestors.pipeline])).all(e, e > 0)
+      message: images must be signed by the platform's golden path (build-app.yml)
+{{- end }}

@@ -1,0 +1,12 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: app-allowed-images
+policies:
+  - ../policies.yaml
+variables: values.yaml
+resources:
+  - resources.yaml
+results:
+  - { policy: app-allowed-images, resources: [own-image, allowed-image], kind: Pod, result: pass }
+  - { policy: app-allowed-images, resources: [other-app-image, other-registry, init-container-checked], kind: Pod, result: fail }

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "policy-kyverno module settings (bluepave.yaml spec.modules.policy-kyverno.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signatureAction": {
+      "description": "What happens to a pod whose images aren't signed by the golden path: Deny (default) or Audit (allowed, reported in PolicyReports). Use Audit while moving existing apps onto the golden path.",
+      "enum": ["Deny", "Audit"]
+    },
+    "signerRefRegExp": {
+      "description": "Git refs of the platform repository's build-app.yml whose signatures are trusted, as a regular expression. Default: main and release tags (refs/heads/main, refs/tags/v<major>...).",
+      "type": "string",
+      "minLength": 1
+    },
+    "allowedImages": {
+      "description": "Exact image references (with tag or digest) that app namespaces may also run, e.g. a pinned curl image used by canary analysis. Not signature-checked: keep the list short.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9.-]+(:[0-9]+)?/[^\\s]+(:[^\\s@]+|@sha256:[a-f0-9]{64})$" },
+      "uniqueItems": true
+    }
+  }
+}
