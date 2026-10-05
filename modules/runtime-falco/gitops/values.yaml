@@ -1,0 +1,14 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [], highAvailability: true }
+settings: {}
+
+# The upstream chart. Bumped by module releases, after the end-to-end test.
+upstream:
+  repoURL: https://falcosecurity.github.io/charts
+  chart: falco
+  version: 9.2.0

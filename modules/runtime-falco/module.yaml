@@ -1,0 +1,14 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: runtime-falco
+  description: Falco runtime threat detection on the nodes that run apps, with the modern eBPF probe
+spec:
+  version: 0.1.0
+  requires: [aks, gitops-argocd]
+  sources:
+    - { url: https://falcosecurity.github.io/charts, type: helm }
+  layers:
+    gitops: gitops
+    docs: docs
+  tests: tests

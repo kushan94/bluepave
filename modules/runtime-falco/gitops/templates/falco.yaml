@@ -1,0 +1,41 @@
+{{- /*
+Placement. Falco is a DaemonSet that tolerates every taint. Where the profile isn't highly
+available (trial), the single system node has no CPU left for another pod, so Falco watches the
+user nodes only: that's where every app runs. Elsewhere it watches every node.
+*/ -}}
+{{- $env := dict }}
+{{- if not .Values.bluepave.scheduling.highAvailability }}
+{{- $env = dict "nodeSelector" (dict "kubernetes.azure.com/mode" "user") }}
+{{- end }}
+{{- $values := mergeOverwrite (.Files.Get "files/falco-values.yaml" | fromYaml) $env }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falco
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: falco
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: falco
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
