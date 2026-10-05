@@ -8,7 +8,7 @@ guardrails; the app gets a keyless workload identity with access to exactly that
 |---|---|---|
 | `AppStorage` | A storage account and blob container, Entra ID only | Available |
 | `AppCache` | A cache: Valkey in the namespace (`data.cache: inCluster`) | Available; Azure Managed Redis (`azureManagedRedis`) in a later version |
-| `AppDatabase` | A database and role on the shared PostgreSQL server | Next version |
+| `AppDatabase` | A database and an Entra role on the platform's PostgreSQL server (`data-postgres`) | Available when `data-postgres` is on |
 
 ## AppStorage
 
@@ -64,6 +64,37 @@ The Valkey image is pinned by digest in `module.yaml` (`spec.appImages`), which 
 admission policy (policy-kyverno) allows it in app namespaces; CI checks the resource graph uses
 exactly that image.
 
+## AppDatabase
+
+```yaml
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppDatabase
+metadata: { name: orders, namespace: anvil-dev }
+spec:
+  serviceAccountName: anvil-api   # the app's service account, trusted by the new identity
+```
+
+On the platform's PostgreSQL server (`data-postgres`, Entra ID sign-in only, private endpoint):
+- a managed identity, federated to the app's service account;
+- a database `<namespace>-<name>` and a role of the same name mapped to that identity, with all
+  privileges on the database and its `public` schema. A Job in `appdatabase-system` creates them
+  as the server's AppDatabase admin (`id-<prefix>-<env>-<region>-pgadmin`, an Entra
+  administrator of the server), because ASO can't create Entra roles inside PostgreSQL;
+- a NetworkPolicy letting the namespace's pods reach the server's private endpoint on 5432;
+- a ConfigMap `<name>-database` with `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGSSLMODE`
+  (`require`), `DATABASE_AUTH` (`entra`) and `DATABASE_CLIENT_ID`.
+
+The app signs in as `PGUSER` with an Entra access token as the password: a token for
+`DATABASE_CLIENT_ID` and the scope `https://ossrdbms-aad.database.windows.net/.default`
+(Workload Identity: label the pod `azure.workload.identity/use: "true"`). Tokens last about an
+hour, so take a fresh one for each new connection.
+
+**Deleting an `AppDatabase` keeps the database and its role.** The identity, the job and the
+policy go. Re-creating it reattaches: the job points the role at the new identity. Drop the
+database deliberately, as a server administrator.
+
+`<namespace>-<name>` must fit PostgreSQL's 63-character limit for names.
+
 ## How it's locked down
 
 - **ASO** signs in with Workload Identity (`id-<prefix>-<env>-<region>-aso`). On the apps
@@ -80,7 +111,7 @@ exactly that image.
   of the object they expand.
 - **ASO installs only the CRD groups** the APIs use (`crdPattern`), not several hundred.
 - **App namespaces can't create ASO kinds directly**, and a quota limits each API per namespace
-  (two `AppStorage`, two `AppCache`).
+  (two of each API).
   App onboarding enforces both (its Argo CD project and a ResourceQuota).
 
 ## Settings
@@ -94,9 +125,12 @@ spec:
         apis:
           appStorage: true
           appCache: true
+          appDatabase: true          # default: on when data-postgres is
 ```
 
-**Outputs:** `clientId`, `appsResourceGroupId`, `oidcIssuerUrl`.
+**Outputs:** `clientId`, `appsResourceGroupId`, `oidcIssuerUrl`, and with `data-postgres`
+`postgresAdminClientId`, `postgresAdminName`. The module is deployed after `data-postgres`
+when that's on (`spec.after`).
 
 ## Runbook
 

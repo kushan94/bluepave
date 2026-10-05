@@ -17,4 +17,14 @@ data:
   oidcIssuer: {{ $ids.oidcIssuerUrl | quote }}
   # Seed for globally unique names (storage accounts): differs per subscription and environment.
   nameSeed: {{ printf "%s/%s" $ctx.subscriptionId $ctx.environment | quote }}
+  {{- if eq (include "ss.appDatabase" .) "true" }}
+  {{- $pg := index $ctx.discovered "data-postgres" | default dict }}
+  {{- $net := index $ctx.discovered "network" | default dict }}
+  # AppDatabase: the PostgreSQL server (data-postgres), the admin role the jobs sign in as, and
+  # where the server's private endpoint is (network).
+  tenantId: {{ $ctx.tenantId | quote }}
+  postgresHost: {{ $pg.postgresFqdn | default "" | quote }}
+  postgresAdminName: {{ $ids.postgresAdminName | default "" | quote }}
+  privateEndpointSubnetPrefix: {{ $net.privateEndpointSubnetPrefix | default "" | quote }}
+  {{- end }}
 {{- end }}

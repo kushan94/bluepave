@@ -59,3 +59,13 @@ spec:
 {{- eq ((.Values.bluepave.profile.data | default dict).cache | default "inCluster") "inCluster" -}}
 {{- end -}}
 {{- end -}}
+
+{{/* Whether AppDatabase is offered: the setting, else on when data-postgres is. */}}
+{{- define "ss.appDatabase" -}}
+{{- $apis := .Values.settings.apis | default dict -}}
+{{- if hasKey $apis "appDatabase" -}}
+{{- $apis.appDatabase -}}
+{{- else -}}
+{{- has "data-postgres" .Values.bluepave.modules -}}
+{{- end -}}
+{{- end -}}

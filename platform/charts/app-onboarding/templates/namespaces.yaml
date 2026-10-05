@@ -31,5 +31,6 @@ spec:
   hard:
     count/appstorages.platform.bluepave.dev: "2"
     count/appcaches.platform.bluepave.dev: "2"
+    count/appdatabases.platform.bluepave.dev: "2"
 {{- end }}
 {{- end }}

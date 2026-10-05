@@ -70,6 +70,7 @@ removed:
 | `discovered` | This environment's IDs: `discovered.environments.<env>` |
 | `gateway.name`, `gateway.namespace` | The public Gateway (`public` in `gateway`, from the edge-gateway module) |
 | `platformHosts` | `{name, namespace, module}` for each platform hostname enabled modules declare (`module.yaml` `spec.hostnames`). A module routes `<name>.<domain>` through the Gateway's listener `https-<name>`, which accepts routes only from that namespace |
+| `appImages` | Image references enabled modules run in app namespaces (`module.yaml` `spec.appImages`, pinned by digest), e.g. AppCache's Valkey. The app image policy allows exactly these there |
 | `scheduling.tolerations` | Tolerations for platform pods (Spot, when the profile has Spot pools) |
 | `scheduling.highAvailability` | Whether platform controllers run more than one replica: false on a cluster tier with no uptime SLA (`Free`, the trial profile) |
 
