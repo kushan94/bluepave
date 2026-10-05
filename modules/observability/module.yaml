@@ -9,7 +9,7 @@ spec:
   outputs: [clientId, monitorWorkspaceQueryEndpoint]
   sources:
     - { url: https://open-telemetry.github.io/opentelemetry-helm-charts, type: helm }
-    - { url: https://grafana.github.io/helm-charts, type: helm }
+    - { url: https://grafana-community.github.io/helm-charts, type: helm }
   hostnames:
     - { name: grafana, namespace: observability }
   layers:
