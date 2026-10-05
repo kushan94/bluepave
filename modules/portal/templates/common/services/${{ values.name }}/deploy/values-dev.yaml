@@ -1,0 +1,16 @@
+# Stage dev (namespace ${{ values.name }}-dev). Kargo writes the image below on every promotion.
+route:
+{%- if values.publicRoute %}
+  hostname: ${{ values.name }}.${{ values.domain }}
+{%- else %}
+  hostname: ""
+{%- endif %}
+
+storage:
+  enabled: ${{ values.storage }}
+
+images:
+  ${{ values.component }}:
+    repository: ""
+    tag: ""
+    digest: ""

@@ -1,0 +1,118 @@
+# "New Python service": one pull request to the platform repository that adds a complete service:
+# its code and chart (services/<name>/), its onboarding (apps/<name>.yaml) and its CI workflow.
+# After the merge the platform takes over: the golden path builds and signs <name>-web, app
+# onboarding creates the namespaces <name>-dev and <name>-staging, and Kargo deploys the first image
+# to dev. The platform's owner, repository and domain come from the platform-settings entity the
+# portal module generates, so this file has nothing to edit.
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: python-service
+  title: New Python service
+  description: >-
+    A Python (FastAPI) HTTP service with the golden path (checks, scan, signature), a Helm chart, a Kargo pipeline
+    (dev -> staging), restricted namespaces and optional blob storage. Opens a pull request to the
+    platform repository.
+  tags: [python]
+spec:
+  owner: platform-team
+  type: service
+  parameters:
+    - title: Service
+      required: [name, description, owner]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: >-
+            Lowercase letters, digits and hyphens, 3-20 characters. Becomes the folder
+            services/<name>, the image <name>-web and the namespaces <name>-dev and <name>-staging.
+          pattern: '^[a-z][a-z0-9-]{1,18}[a-z0-9]$'
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          maxLength: 200
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+    - title: Platform features
+      properties:
+        publicRoute:
+          title: Public HTTPS route
+          description: <name>.<environment>.<domain> for dev, <name>-staging.<environment>.<domain> for staging
+          type: boolean
+          default: true
+        storage:
+          title: Blob storage (AppStorage)
+          description: A keyless storage account and container, with its connection details as environment variables
+          type: boolean
+          default: false
+  steps:
+    - id: platform
+      name: Read the platform's settings
+      action: catalog:fetch
+      input:
+        entityRef: resource:default/platform-settings
+
+    - id: code
+      name: Generate the service
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          publicRoute: ${{ parameters.publicRoute }}
+          storage: ${{ parameters.storage }}
+          component: web
+          githubOwner: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/github-owner'] }}
+          platformRepo: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/platform-repo'] }}
+          environment: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/environment'] }}
+          domain: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/domain'] }}
+
+    - id: platform-files
+      name: Add its chart, onboarding and workflow
+      action: fetch:template
+      input:
+        url: ../common
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          publicRoute: ${{ parameters.publicRoute }}
+          storage: ${{ parameters.storage }}
+          component: web
+          githubOwner: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/github-owner'] }}
+          platformRepo: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/platform-repo'] }}
+          environment: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/environment'] }}
+          domain: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/domain'] }}
+
+    - id: pr
+      name: Open a pull request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/github-owner'] }}&repo=${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/platform-repo'] }}
+        targetBranchName: ${{ steps.platform.output.entity.metadata.annotations['bluepave.dev/revision'] }}
+        branchName: add-service-${{ parameters.name }}
+        title: 'Add service ${{ parameters.name }}'
+        description: |
+          Adds **${{ parameters.name }}**: ${{ parameters.description }}
+
+          Created from the portal template "New Python service".
+
+          - `services/${{ parameters.name }}/`: the service, its Dockerfile, Helm chart and catalog entry
+          - `apps/${{ parameters.name }}.yaml`: its onboarding (namespaces `${{ parameters.name }}-dev` and `${{ parameters.name }}-staging`, Kargo pipeline)
+          - `.github/workflows/${{ parameters.name }}.yml`: the golden path for it
+
+          After the merge the golden path builds and signs `${{ parameters.name }}-web`, and Kargo deploys it to dev.
+
+  output:
+    links:
+      - title: Pull request
+        url: ${{ steps.pr.output.remoteUrl }}

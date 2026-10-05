@@ -1,0 +1,22 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description | dump }}
+  annotations:
+    github.com/project-slug: ${{ values.githubOwner }}/${{ values.platformRepo }}
+    backstage.io/source-location: url:https://github.com/${{ values.githubOwner }}/${{ values.platformRepo }}/tree/main/services/${{ values.name }}/
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=${{ values.name }}
+  links:
+    - url: https://argocd.${{ values.domain }}/applications/argocd/${{ values.name }}-dev
+      title: Argo CD (dev)
+{%- if values.publicRoute %}
+    - url: https://${{ values.name }}.${{ values.domain }}
+      title: dev
+    - url: https://${{ values.name }}-staging.${{ values.domain }}
+      title: staging
+{%- endif %}
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{ values.owner }}

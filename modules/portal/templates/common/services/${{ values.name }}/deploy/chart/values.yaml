@@ -1,0 +1,33 @@
+# Defaults shared by every stage; per-stage values are in ../values-<stage>.yaml.
+
+# Written by Kargo when it promotes Freight to a stage: the image's repository in the platform
+# registry, its tag (the commit) and digest. Until the first promotion there is no digest, and the
+# chart renders no Deployment.
+images:
+  ${{ values.component }}:
+    repository: ""
+    tag: ""
+    digest: ""
+
+replicas: 1
+port: 8080
+resources: { requests: { cpu: 10m, memory: 64Mi }, limits: { memory: 128Mi } }
+
+# Public hostname on the platform's Gateway; empty means no public route.
+route:
+  hostname: ""
+  gateway:
+    name: public
+    namespace: gateway
+
+# Blob storage from the platform's AppStorage API; its connection details arrive as
+# AZURE_STORAGE_* environment variables.
+storage:
+  enabled: false
+
+# Apps may run on Spot nodes where the platform has them (cheaper, can be evicted).
+tolerations:
+  - key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
+    effect: NoSchedule

@@ -1,0 +1,40 @@
+name: ${{ values.name }}
+
+# ${{ values.name }} (services/${{ values.name }}/), created from a portal template: checks, builds
+# and scans it with the golden path on every pull request. On main, where the platform's repository
+# variables exist (BLUEPAVE_*, set by `bluepave up`), the image is also pushed and signed, and
+# Kargo deploys it to dev (apps/${{ values.name }}.yaml).
+on:
+  pull_request:
+    paths: [services/${{ values.name }}/**, .github/workflows/${{ values.name }}.yml]
+  push:
+    branches: [main]
+    paths:
+      - services/${{ values.name }}/**
+      - .github/workflows/${{ values.name }}.yml
+      # Kargo's promotion commits and docs must not rebuild (a rebuild would be promoted again).
+      - '!services/${{ values.name }}/deploy/values-*.yaml'
+      - '!services/${{ values.name }}/**/*.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ values.name }}-{% raw %}${{ github.event.pull_request.number || github.sha }}{% endraw %}
+  cancel-in-progress: {% raw %}${{ github.event_name == 'pull_request' }}{% endraw %}
+
+jobs:
+  build:
+    name: ${{ values.name }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: ${{ values.name }}
+      app-dir: services/${{ values.name }}{% raw %}
+      publish: ${{ github.event_name == 'push' && vars.BLUEPAVE_REGISTRY != '' }}
+      registry: ${{ vars.BLUEPAVE_REGISTRY }}
+      azure-tenant-id: ${{ vars.BLUEPAVE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.BLUEPAVE_SUBSCRIPTION_ID }}
+      azure-client-id: ${{ vars.BLUEPAVE_CLIENT_ID }}{% endraw %}

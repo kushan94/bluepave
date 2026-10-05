@@ -10,3 +10,15 @@ spec:
   targets:
     - ./catalog/org.yaml
     - ./catalog/platform.yaml
+    - ./modules/portal/templates/catalog.yaml
+---
+# Services created from the portal's templates (services/<name>/). Optional: there may be none yet.
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: services
+  description: Services in the platform repository
+spec:
+  presence: optional
+  targets:
+    - ./services/*/catalog-info.yaml
