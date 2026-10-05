@@ -28,9 +28,10 @@ Usage:
   bluepave plan     [-f bluepave.yaml] [-env dev] [-module name] [-what-if]
                                                    list the deployment stacks in order
                                                    (-what-if: preview each in Azure)
-  bluepave up       [-f bluepave.yaml] [-step infra] [-env dev] [-module name] [-yes]
-                                                   deploy the modules' Azure resources and
-                                                   record their outputs in .bluepave/discovered.yaml
+  bluepave up       [-f bluepave.yaml] [-step accounts|infra|identities] [-env dev] [-module name] [-yes]
+                                                   create the platform: admins group and CI identity,
+                                                   the modules' Azure resources, Entra apps and secrets;
+                                                   IDs go to .bluepave/discovered.yaml
   bluepave modules  [-root .]                      list the available modules
   bluepave version
 `

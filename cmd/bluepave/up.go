@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
+	"github.com/kushan94/bluepave/internal/bootstrap"
 	"github.com/kushan94/bluepave/internal/deploy"
 	"github.com/kushan94/bluepave/internal/discovered"
 	cmdrun "github.com/kushan94/bluepave/internal/run"
@@ -78,21 +80,28 @@ func planCmd(args []string, stdout, stderr io.Writer) int {
 	return status
 }
 
+// steps of `bluepave up`, in order.
+var steps = []string{"accounts", "infra", "identities"}
+
 func upCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("up", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	file := fs.String("f", "bluepave.yaml", "platform configuration")
 	root := fs.String("root", ".", "bluepave repository root")
-	step := fs.String("step", "infra", "what to do: infra (deploy the modules' Azure resources)")
-	env := fs.String("env", "", "only this environment (global modules are always included)")
-	module := fs.String("module", "", "only this module")
+	step := fs.String("step", "", "run one step: "+strings.Join(steps, ", ")+" (default: all, in order)")
+	env := fs.String("env", "", "infra: only this environment (global modules are always included)")
+	module := fs.String("module", "", "infra: only this module")
 	yes := fs.Bool("yes", false, "don't ask for confirmation")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *step != "infra" {
-		fmt.Fprintf(stderr, "unknown step %q (available: infra)\n", *step)
-		return 2
+	run := steps
+	if *step != "" {
+		if !slices.Contains(steps, *step) {
+			fmt.Fprintf(stderr, "unknown step %q (available: %s)\n", *step, strings.Join(steps, ", "))
+			return 2
+		}
+		run = []string{*step}
 	}
 	pl, err := load(*file, *root)
 	if err != nil {
@@ -110,34 +119,67 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	stacks := selectStacks(deploy.Plan(pl.config, pl.ordered), *env, *module)
-	fmt.Fprintf(stdout, "Deploying %d stacks to subscription %v (%s):\n", len(stacks), ids.Get("azure", "subscriptionId"), pl.config.Spec.Azure.Region)
-	for _, s := range stacks {
-		fmt.Fprintf(stdout, "  %s\n", s.Label())
+	fmt.Fprintf(stdout, "Platform %q on subscription %v (%s). Steps: %s.\n", pl.config.Metadata.Name,
+		ids.Get("azure", "subscriptionId"), pl.config.Spec.Azure.Region, strings.Join(run, ", "))
+	if slices.Contains(run, "infra") {
+		fmt.Fprintf(stdout, "Deployment stacks (%d):", len(stacks))
+		for _, s := range stacks {
+			fmt.Fprintf(stdout, " %s", s.Label())
+		}
+		fmt.Fprintln(stdout)
 	}
 	if !*yes && !confirm(stdout, "Continue?") {
 		fmt.Fprintln(stderr, "cancelled")
 		return 1
 	}
+	var enabled []string
+	for _, m := range pl.ordered {
+		enabled = append(enabled, m.Metadata.Name)
+	}
+	boot := bootstrap.Bootstrap{Runner: runner, Platform: pl.config, Modules: enabled, IDs: ids, Log: stdout}
+	for _, st := range run {
+		var err error
+		switch st {
+		case "accounts":
+			err = boot.Accounts(ctx)
+		case "infra":
+			err = deployStacks(ctx, stdout, stderr, pl, stacks, ids, *root)
+		case "identities":
+			err = boot.Identities(ctx)
+		}
+		// Save after every step (infra also saves after every stack): a failure keeps the progress.
+		if saveErr := ids.Save(*root); saveErr != nil && err == nil {
+			err = saveErr
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			fmt.Fprintf(stderr, "stopped in step %s; fix it and run `bluepave up` again (finished work is a no-op)\n", st)
+			return 1
+		}
+	}
+	fmt.Fprintf(stdout, "\nDone. Commit %s: GitOps reads the new IDs from Git.\n", discovered.Path)
+	if ns, ok := ids.Get("global", "dns", "nameServers").([]any); ok && len(ns) > 0 {
+		fmt.Fprintf(stdout, "Delegate %s to these name servers at your registrar: %v\n", pl.config.Spec.DNS.Domain, ns)
+	}
+	return 0
+}
+
+func deployStacks(ctx context.Context, stdout, stderr io.Writer, pl *platform, stacks []deploy.Stack, ids discovered.IDs, root string) error {
 	eng := deploy.Engine{Runner: runner, Location: pl.config.Spec.Azure.Region}
 	for i, s := range stacks {
 		fmt.Fprintf(stdout, "\n==> [%d/%d] %s (stack %s)\n", i+1, len(stacks), s.Label(), s.Name)
 		outputs, err := eng.Deploy(ctx, s, ids)
-		// Save after every stack: a failure later keeps what succeeded.
-		if saveErr := ids.Save(*root); saveErr != nil {
-			fmt.Fprintln(stderr, saveErr)
-			return 1
+		if saveErr := ids.Save(root); saveErr != nil {
+			return saveErr
 		}
 		if err != nil {
-			fmt.Fprintln(stderr, err)
-			fmt.Fprintf(stderr, "stopped at %s; fix it and run `bluepave up` again (finished stacks are no-ops)\n", s.Label())
-			return 1
+			return fmt.Errorf("%s: %w", s.Label(), err)
 		}
 		for _, k := range sortedOutputKeys(outputs) {
 			fmt.Fprintf(stdout, "    %s = %s\n", k, short(outputs[k]))
 		}
 	}
-	fmt.Fprintf(stdout, "\nDone. Commit %s: GitOps reads the new IDs from Git.\n", discovered.Path)
-	return 0
+	return nil
 }
 
 // recordAccount stores the signed-in tenant and subscription; a different subscription than the

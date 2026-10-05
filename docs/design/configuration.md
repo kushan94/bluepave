@@ -122,8 +122,10 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 3. **CLI:** preflight, up, status, down, folding in the seven Skyforge bootstrap scripts.
    - `plan` and `up -step infra`: deployment stacks per module and environment, outputs into
      `.bluepave/discovered.yaml`, recorded outputs passed back as parameters (done).
-   - Identities and secrets: admins group, CI identity and GitHub OIDC, Entra apps, GitHub App,
-     Key Vault secrets, repository variables.
+   - `up -step accounts` and `-step identities`: providers, admins group, CI identity and GitHub
+     OIDC with main-only environments, Entra apps (Argo CD, Grafana, portal), Key Vault secrets,
+     repository variables (done).
+   - The platform GitHub App (manifest flow) and its secrets.
    - GitOps bootstrap, `status`, `down`.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.

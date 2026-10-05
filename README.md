@@ -47,11 +47,19 @@ go run ./cmd/bluepave validate                   # check the configuration, modu
 go run ./cmd/bluepave modules                    # list available modules
 go run ./cmd/bluepave render                     # resolve modules for GitOps (.bluepave/resolved.yaml)
 go run ./cmd/bluepave plan [-what-if]            # the deployment stacks, in order (and their Azure changes)
-go run ./cmd/bluepave up -step infra             # deploy the modules' Azure resources, record their outputs
+go run ./cmd/bluepave up                         # accounts, infra, identities (as a subscription Owner)
 ```
 
-`up` also needs to create identities, the GitHub App and Entra apps, and bootstrap Argo CD; those
-steps are next ([docs/design/configuration.md](docs/design/configuration.md), section 8).
+`up` runs as you (`az login` as a subscription Owner, `gh auth login` with admin on the platform
+repository):
+1. **accounts:** resource providers, the admins group (you're added), the CI identity trusted by
+   the platform repository's GitHub environments (main only), repository variables.
+2. **infra:** every module's deployment stack, in order, outputs into `.bluepave/discovered.yaml`.
+3. **identities:** Entra apps for Argo CD, Grafana and the portal, Kargo's admin credentials and
+   the portal's client secret in Key Vault.
+
+The platform GitHub App and the GitOps bootstrap (Argo CD) are next
+([docs/design/configuration.md](docs/design/configuration.md), section 8).
 
 ## Contributing
 

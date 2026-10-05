@@ -150,7 +150,7 @@ func TestUpInfra(t *testing.T) {
 	defer func() { runner = old }()
 
 	var out, errOut bytes.Buffer
-	code := run([]string{"up", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut)
+	code := run([]string{"up", "-step", "infra", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut.String())
 	}
@@ -169,5 +169,85 @@ func TestUpInfra(t *testing.T) {
 	}
 	if ids.Get("azure", "subscriptionId") != "sub-1" || ids.Get("environments", "dev", "aks", "marker") != "ok" {
 		t.Errorf("discovered = %v", ids)
+	}
+}
+
+// The whole of `up` against a recording runner: accounts, infra, identities. Every Entra object is
+// new; Key Vault has no secrets yet.
+func TestUpAll(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules", "apps"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const portalSecret = "s3cret-from-entra"
+	rec := &cmdrun.Recorder{Responses: map[string]string{
+		"az account show":                     `{"id": "sub-1", "tenantId": "tenant-1"}`,
+		"az ad signed-in-user show":           "user-1",
+		"az ad group create":                  "group-1",
+		"az ad group member check":            "false",
+		"az ad app create":                    "app-1",
+		"az ad sp create":                     "sp-1",
+		"az ad app credential reset":          portalSecret,
+		"az ad app federated-credential list": "null",
+		"gh api repos/acme/acme-platform/environments/dev/deployment-branch-policies": "0",
+		"az keyvault secret list": "0",
+		"az bicep build":          `{"parameters": {"environmentName": {}}}`,
+		// Every stack returns every output the identities step reads.
+		"az stack sub create": `{"outputs": {
+			"oidcIssuerUrl": {"value": "https://issuer.example/"},
+			"keyVaultName": {"value": "kv-1"},
+			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"}}}`,
+	}}
+	old := runner
+	runner = rec
+	defer func() { runner = old }()
+
+	var out, errOut bytes.Buffer
+	if code := run([]string{"up", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut); code != 0 {
+		t.Fatalf("exit %d: %s\n%s", code, errOut.String(), out.String())
+	}
+	var lines []string
+	for _, c := range rec.Calls {
+		line := c.String()
+		if strings.Contains(line, portalSecret) {
+			t.Errorf("a secret reached a command line: %s", line)
+		}
+		lines = append(lines, line)
+	}
+	all := strings.Join(lines, "\n")
+	for _, want := range []string{
+		"az ad group member add --group group-1 --member-id user-1",
+		`"subject":"repo:acme/acme-platform:environment:dev"`,
+		`"subject":"system:serviceaccount:argocd:argocd-server"`,
+		`"subject":"system:serviceaccount:observability:grafana"`,
+		"az keyvault secret set --vault-name kv-1 --name portal-entra-client-secret --file",
+		"az keyvault secret set --vault-name kv-1 --name kargo-admin-password-hash --file",
+		"gh variable set BLUEPAVE_CLIENT_ID --repo acme/acme-platform --body app-1",
+		"gh variable set BLUEPAVE_REGISTRY --repo acme/acme-platform --body cr1.azurecr.io",
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("no command contains %q", want)
+		}
+	}
+	// accounts runs before infra: the admins group and CI identity exist when the registry and Key
+	// Vault grant them roles.
+	if strings.Index(all, "az ad group create") > strings.Index(all, "az stack sub create") {
+		t.Error("the admins group was created after the first stack")
+	}
+	ids, err := discovered.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{
+		"admins/groupObjectId":                    "group-1",
+		"ci/principalId":                          "sp-1",
+		"environments/dev/gitops-argocd/clientId": "app-1",
+		"environments/dev/portal/appClientId":     "app-1",
+	} {
+		if got := ids.Get(strings.Split(path, "/")...); got != want {
+			t.Errorf("%s = %v, want %s", path, got, want)
+		}
 	}
 }
