@@ -127,7 +127,7 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`. To do: `delivery-kargo`,
 `rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `certificates`, `observability`,
-`self-service-appstorage`, `portal`. Each is added to the profiles that should enable it by default
+`self-service` (`AppStorage`, `AppCache`, `AppDatabase`; [ADR-0003](../adr/0003-self-service-apis.md)), `portal`. Each is added to the profiles that should enable it by default
 when it lands.
 
 ## 9. Open decisions
@@ -137,3 +137,6 @@ Decided:
 - **Distribution:** a GitHub template repository first; product and instance repositories later
   (ADR-0001).
 - **Framework structure:** modules behind a versioned config API (ADR-0001).
+- **GitOps layer:** a root chart, one Application per module, and the module context (ADR-0002).
+- **App resources:** platform APIs on ASO + kro; no platform-wide Redis; Crossplane can replace
+  the engine behind the same APIs (ADR-0003).

@@ -25,7 +25,7 @@ spec:
   budget: { monthly: 2000 }
   data:
     postgres: { skuName: Standard_D2ds_v5, tier: GeneralPurpose, storageSizeGB: 64, highAvailability: ZoneRedundant, geoRedundantBackup: true, backupRetentionDays: 35 }
-    cache: azureManagedRedis
+    cache: azureManagedRedis       # AppCache = Azure Managed Redis, Entra ID auth (ADR-0003)
   ingress: agc
   modules:
     defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd]

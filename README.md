@@ -24,7 +24,8 @@ promoted, running app on AKS.**
   Rollouts canaries.
 - **Self-service:**
   - one onboarding file per app (namespaces, Argo CD project, generated Kargo pipeline);
-  - platform APIs such as `AppStorage` (a keyless blob store from five lines of YAML).
+  - platform APIs: `AppStorage`, `AppCache` and `AppDatabase`, each keyless and a few lines of
+    YAML, backed per profile (in-cluster or Azure-managed).
 - **A developer portal (Backstage):**
   - a catalog, TechDocs, and a live Kubernetes view;
   - templates for new Go and Python services;
