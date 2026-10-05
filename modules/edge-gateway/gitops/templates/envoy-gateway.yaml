@@ -1,0 +1,12 @@
+{{- $ctx := .Values.bluepave }}
+{{- if eq ($ctx.profile.ingress | default "inCluster") "agc" }}
+{{- fail "profile ingress: agc (Application Gateway for Containers) isn't implemented yet; use inCluster" }}
+{{- end }}
+{{- $t := $ctx.scheduling.tolerations }}
+{{- $env := dict
+  "deployment" (dict "pod" (dict "tolerations" $t))
+  "certgen" (dict "job" (dict "tolerations" $t))
+}}
+{{- $values := mergeOverwrite (.Files.Get "files/envoy-gateway-values.yaml" | fromYaml) $env }}
+{{- /* The chart also installs the Gateway API CRDs. An OCI chart: the root chart adds its repository. */ -}}
+{{ include "edge.application" (dict "name" "envoy-gateway" "namespace" "envoy-gateway-system" "upstream" .Values.upstream.envoyGateway "values" $values) }}

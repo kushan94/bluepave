@@ -11,6 +11,7 @@ bluepave:
   modules: []
   discovered: {}
   scheduling: { tolerations: [] }
+  gateway: { name: public, namespace: gateway }
 settings: {}
 
 # The upstream chart. Bumped by module releases, after the end-to-end test.

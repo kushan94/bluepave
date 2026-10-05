@@ -1,0 +1,31 @@
+{{- /*
+external-dns creates records in this environment's DNS zone for the hostnames of HTTPRoutes,
+signed in with Workload Identity. Rendered once `bluepave up` has recorded this module's outputs.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $ids := index $ctx.discovered "edge-gateway" | default dict }}
+{{- if and $ids.clientId $ctx.subscriptionId }}
+{{- $env := dict
+  "serviceAccount" (dict "annotations" (dict "azure.workload.identity/client-id" $ids.clientId))
+  "domainFilters" (list $ids.dnsZoneName)
+  "txtOwnerId" (printf "%s-%s" $ctx.prefix $ctx.environment)
+  "tolerations" $ctx.scheduling.tolerations
+}}
+{{- $values := mergeOverwrite (.Files.Get "files/external-dns-values.yaml" | fromYaml) $env }}
+{{ include "edge.application" (dict "name" "external-dns" "namespace" "external-dns" "upstream" .Values.upstream.externalDns "values" $values) }}
+---
+# IDs only, no secrets: external-dns authenticates with Workload Identity.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-dns-azure
+  namespace: external-dns
+data:
+  azure.json: |
+    {
+      "tenantId": {{ $ctx.tenantId | quote }},
+      "subscriptionId": {{ $ctx.subscriptionId | quote }},
+      "resourceGroup": {{ $ids.dnsZoneResourceGroup | quote }},
+      "useWorkloadIdentityExtension": true
+    }
+{{- end }}

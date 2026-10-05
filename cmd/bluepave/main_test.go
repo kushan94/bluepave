@@ -89,3 +89,29 @@ func TestSettingsChecked(t *testing.T) {
 		})
 	}
 }
+
+func TestHostnameClaimedTwice(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A second module claiming Argo CD's hostname.
+	twin := filepath.Join(root, "modules", "rollouts", "module.yaml")
+	data, err := os.ReadFile(twin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = []byte(strings.Replace(string(data), "  layers:", "  hostnames:\n    - { name: argocd, namespace: argo-rollouts }\n  layers:", 1))
+	if err := os.WriteFile(twin, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if code := run([]string{"validate", "-f", "../../bluepave.yaml", "-root", root}, &out, &errOut); code != 1 {
+		t.Fatalf("exit %d, want 1; stdout: %s", code, out.String())
+	}
+	if want := `both claim the platform hostname "argocd"`; !strings.Contains(errOut.String(), want) {
+		t.Errorf("stderr = %q, want it to contain %q", errOut.String(), want)
+	}
+}

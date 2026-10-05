@@ -90,6 +90,17 @@ func load(file, root string) (*platform, error) {
 			problems = append(problems, err)
 		}
 	}
+	// A platform hostname belongs to one module: two listeners for one hostname would be ambiguous.
+	hostOwner := map[string]string{}
+	for _, m := range ordered {
+		for _, h := range m.Spec.Hostnames {
+			if other, taken := hostOwner[h.Name]; taken {
+				problems = append(problems, fmt.Errorf("modules %q and %q both claim the platform hostname %q", other, m.Metadata.Name, h.Name))
+				continue
+			}
+			hostOwner[h.Name] = m.Metadata.Name
+		}
+	}
 	// Settings for a module that isn't enabled are most likely a typo in its name.
 	on := map[string]bool{}
 	for _, m := range ordered {

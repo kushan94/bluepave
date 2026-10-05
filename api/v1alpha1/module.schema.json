@@ -95,6 +95,29 @@
           },
           "uniqueItems": true
         },
+        "hostnames": {
+          "description": "Platform hostnames this module serves through the edge-gateway module: <name>.<environment>.<domain>, each on its own Gateway listener (https-<name>) that only accepts routes from the given namespace, so no app can claim it.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "namespace"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,30}$"
+              },
+              "namespace": {
+                "type": "string",
+                "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+              }
+            }
+          },
+          "uniqueItems": true
+        },
         "config": {
           "type": "object",
           "additionalProperties": false,

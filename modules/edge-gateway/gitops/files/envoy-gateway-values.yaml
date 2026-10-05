@@ -1,0 +1,7 @@
+# Envoy Gateway controller. The Envoy proxy pods it creates are configured separately, through
+# the EnvoyProxy resource referenced by the GatewayClass (templates/gateway.yaml).
+deployment:
+  envoyGateway:
+    resources:
+      requests: { cpu: 25m, memory: 128Mi }
+      limits: { memory: 512Mi }

@@ -1,6 +1,6 @@
-// The identity cert-manager solves Let's Encrypt DNS-01 challenges as: it may change records in
-// this environment's public subzone (<env>.<domain>, created by the dns module) and nothing else.
-// Its federated credential trusts the cert-manager service account, so no secret is stored.
+// The identity external-dns publishes Gateway route hostnames as: it may change records in this
+// environment's public subzone (<env>.<domain>, created by the dns module) and nothing else. Its
+// federated credential trusts the external-dns service account, so no secret is stored.
 targetScope = 'subscription'
 
 import {
@@ -29,11 +29,11 @@ resource cluster 'Microsoft.ContainerService/managedClusters@2026-05-01' existin
 module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = {
   scope: resourceGroup(names.rgAks)
   params: {
-    name: workloadIdentityName(environmentName, 'cert-manager')
+    name: workloadIdentityName(environmentName, 'external-dns')
     location: location
     tags: tags
     federatedIdentityCredentials: [
-      federatedCredential(cluster.properties.oidcIssuerProfile.issuerURL, 'cert-manager', 'cert-manager')
+      federatedCredential(cluster.properties.oidcIssuerProfile.issuerURL, 'external-dns', 'external-dns')
     ]
   }
 }

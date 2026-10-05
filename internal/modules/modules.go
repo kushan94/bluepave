@@ -28,6 +28,7 @@ type Module struct {
 		Requires   []string          `yaml:"requires"`
 		Outputs    []string          `yaml:"outputs"`
 		Sources    []Source          `yaml:"sources"`
+		Hostnames  []Hostname        `yaml:"hostnames"`
 		Layers     map[string]string `yaml:"layers"`
 		Tests      string            `yaml:"tests"`
 		Config     *struct {
@@ -40,6 +41,12 @@ type Module struct {
 type Source struct {
 	URL  string `yaml:"url"`
 	Type string `yaml:"type"`
+}
+
+// Hostname is a platform hostname a module serves through the edge gateway.
+type Hostname struct {
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
 }
 
 // ValidateSettings checks a module's settings from bluepave.yaml against its config schema. A

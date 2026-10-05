@@ -1,0 +1,35 @@
+# external-dns: creates DNS records in Azure DNS for the hostnames of Gateway API HTTPRoutes.
+# It signs in with Workload Identity; the identity may only change this environment's subzone.
+provider:
+  name: azure
+
+sources:
+  - gateway-httproute
+
+# Records it creates are tagged with a TXT owner record, and it only ever deletes its own.
+policy: sync
+registry: txt
+txtPrefix: "_externaldns."
+
+serviceAccount:
+  name: external-dns
+  labels:
+    azure.workload.identity/use: "true"
+
+podLabels:
+  azure.workload.identity/use: "true"
+
+# azure.json (tenant, subscription, zone resource group; IDs only) from a ConfigMap rendered by
+# templates/external-dns.yaml.
+extraVolumes:
+  - name: azure-config
+    configMap:
+      name: external-dns-azure
+extraVolumeMounts:
+  - name: azure-config
+    mountPath: /etc/kubernetes
+    readOnly: true
+
+resources:
+  requests: { cpu: 10m, memory: 48Mi }
+  limits: { memory: 128Mi }

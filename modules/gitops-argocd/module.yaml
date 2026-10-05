@@ -8,6 +8,8 @@ spec:
   requires: [aks]
   sources:
     - { url: https://argoproj.github.io/argo-helm, type: helm }
+  hostnames:
+    - { name: argocd, namespace: argocd }
   config:
     schema: config.schema.json
   layers:
