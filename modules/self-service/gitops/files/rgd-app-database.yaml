@@ -1,0 +1,232 @@
+# AppDatabase: the platform API for a PostgreSQL database (ADR-0003), on the platform's server
+# (data-postgres), with Entra ID sign-in only.
+#
+# An app team commits one small object next to its app:
+#
+#   apiVersion: platform.bluepave.dev/v1alpha1
+#   kind: AppDatabase
+#   metadata: { name: orders, namespace: anvil-dev }
+#   spec:
+#     serviceAccountName: anvil-api
+#
+# kro expands it into:
+#   - a managed identity (ASO), trusted by the app's service account (Workload Identity);
+#   - a Job in the platform namespace appdatabase-system, running as the server's AppDatabase
+#     admin (an Entra administrator, infra/main.bicep). With an Entra token for that admin it
+#     creates the database <namespace>-<name> and a role of the same name mapped to the app's
+#     identity, and grants the role the database and its public schema. ASO can't create Entra
+#     roles inside PostgreSQL, hence the job. Every step is idempotent.
+#   - a NetworkPolicy letting the namespace's pods reach the server's private endpoint (:5432);
+#   - a ConfigMap "<name>-database" with PGHOST, PGPORT, PGDATABASE, PGUSER, PGSSLMODE,
+#     DATABASE_AUTH (entra) and DATABASE_CLIENT_ID. The app signs in with an Entra token for that
+#     client ID as the password (scope https://ossrdbms-aad.database.windows.net/.default).
+# Deleting the AppDatabase deletes the identity, the job and the policy, but keeps the database
+# and its role (ADR-0003: data outlives its Kubernetes object). Re-creating it reattaches: the job
+# points the role at the new identity.
+# Names: <namespace>-<name> must fit PostgreSQL's 63 characters.
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: appdatabase.platform.bluepave.dev
+  annotations:
+    # The CRDs it builds on (ASO's) may not exist yet on the first sync.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: AppDatabase
+    group: platform.bluepave.dev
+    spec:
+      serviceAccountName: string | required=true
+    status:
+      database: ${connection.data.PGDATABASE}
+      clientId: ${identity.status.clientId}
+
+  resources:
+    # Per-environment values (subscription, server, admin role), from the module's discovered
+    # outputs and data-postgres's (templates/platform-settings.yaml).
+    - id: settings
+      externalRef:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: platform-settings
+          namespace: kro-system
+
+    - id: identity
+      template:
+        apiVersion: managedidentity.azure.com/v1api20230131
+        kind: UserAssignedIdentity
+        metadata:
+          name: ${schema.metadata.name + "-database"}
+          namespace: ${schema.metadata.namespace}
+        spec:
+          azureName: ${"id-app-" + schema.metadata.namespace + "-" + schema.metadata.name + "-db"}
+          location: ${settings.data.location}
+          owner:
+            armId: ${settings.data.appsResourceGroupId}
+      readyWhen:
+        - ${identity.status.?principalId.orValue("") != ""}
+
+    - id: federation
+      template:
+        apiVersion: managedidentity.azure.com/v1api20230131
+        kind: FederatedIdentityCredential
+        metadata:
+          name: ${schema.metadata.name + "-database"}
+          namespace: ${schema.metadata.namespace}
+        spec:
+          owner:
+            name: ${identity.metadata.name}
+          audiences: ["api://AzureADTokenExchange"]
+          issuer: ${settings.data.oidcIssuer}
+          subject: ${"system:serviceaccount:" + schema.metadata.namespace + ":" + schema.spec.serviceAccountName}
+
+    # Creates the database and the role. Named after the identity, so a re-created identity gets a
+    # new job (a Job's pod template can't change).
+    - id: job
+      template:
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: ${"db-" + "%x".format([hash.fnv64a(schema.metadata.namespace + "/" + schema.metadata.name + "/" + identity.status.principalId)])}
+          namespace: appdatabase-system
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appdatabase
+            platform.bluepave.dev/namespace: ${schema.metadata.namespace}
+        spec:
+          backoffLimit: 6
+          activeDeadlineSeconds: 900
+          template:
+            metadata:
+              labels:
+                azure.workload.identity/use: "true"
+                platform.bluepave.dev/api: appdatabase
+            spec:
+              serviceAccountName: appdatabase-admin
+              restartPolicy: Never
+              enableServiceLinks: false
+              securityContext:
+                runAsNonRoot: true
+                seccompProfile: { type: RuntimeDefault }
+              initContainers:
+                # An Entra token for the admin identity, from its federated service account token.
+                - name: token
+                  image: docker.io/curlimages/curl:8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
+                  command:
+                    - /bin/sh
+                    - -ec
+                    - |
+                      # Plain $VAR only: kro reads dollar-brace as its own expressions.
+                      authority=$(printf %s "$AZURE_AUTHORITY_HOST" | sed 's:/*$::')
+                      curl -sS --fail-with-body -o /work/response.json \
+                        "$authority/$AZURE_TENANT_ID/oauth2/v2.0/token" \
+                        -d grant_type=client_credentials \
+                        -d "client_id=$AZURE_CLIENT_ID" \
+                        -d scope=https://ossrdbms-aad.database.windows.net/.default \
+                        -d client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer \
+                        --data-urlencode "client_assertion@$AZURE_FEDERATED_TOKEN_FILE"
+                      sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' /work/response.json > /work/token
+                      rm /work/response.json
+                      test -s /work/token
+                  securityContext:
+                    runAsUser: 100
+                    allowPrivilegeEscalation: false
+                    readOnlyRootFilesystem: true
+                    capabilities: { drop: [ALL] }
+                  resources:
+                    requests: { cpu: 10m, memory: 16Mi }
+                    limits: { memory: 64Mi }
+                  volumeMounts:
+                    - { name: work, mountPath: /work }
+              containers:
+                - name: setup
+                  image: docker.io/library/postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+                  env:
+                    - { name: HOME, value: /work }
+                    - { name: PGHOST, value: '${settings.data.postgresHost}' }
+                    - { name: PGUSER, value: '${settings.data.postgresAdminName}' }
+                    - { name: PGDATABASE, value: postgres }
+                    - { name: PGSSLMODE, value: require }
+                    - { name: APP_DATABASE, value: '${schema.metadata.namespace + "-" + schema.metadata.name}' }
+                    - { name: APP_ROLE, value: '${schema.metadata.namespace + "-" + schema.metadata.name}' }
+                    - { name: APP_OID, value: '${identity.status.principalId}' }
+                  command:
+                    - /bin/sh
+                    - -ec
+                    - |
+                      PGPASSWORD=$(cat /work/token); export PGPASSWORD
+                      psql -X -v ON_ERROR_STOP=1 -v db="$APP_DATABASE" -v role="$APP_ROLE" -v oid="$APP_OID" <<'SQL'
+                      SELECT format('CREATE DATABASE %I', :'db')
+                        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db')\gexec
+                      SELECT format('SELECT * FROM pgaadauth_create_principal_with_oid(%L, %L, %L, false, false)', :'role', :'oid', 'service')
+                        WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'role')\gexec
+                      -- Re-created identity: point the existing role at the new object ID.
+                      SELECT format('SECURITY LABEL FOR "pgaadauth" ON ROLE %I IS %L', :'role', 'aadauth,oid=' || :'oid' || ',type=service')
+                        WHERE (SELECT label FROM pg_seclabels WHERE objtype = 'role' AND objname = :'role' AND provider = 'pgaadauth')
+                          IS DISTINCT FROM 'aadauth,oid=' || :'oid' || ',type=service'\gexec
+                      SELECT format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I', :'db', :'role')\gexec
+                      SQL
+                      psql -X -v ON_ERROR_STOP=1 -d "$APP_DATABASE" -v role="$APP_ROLE" <<'SQL'
+                      SELECT format('GRANT ALL ON SCHEMA public TO %I', :'role')\gexec
+                      SQL
+                  securityContext:
+                    runAsUser: 70
+                    allowPrivilegeEscalation: false
+                    readOnlyRootFilesystem: true
+                    capabilities: { drop: [ALL] }
+                  resources:
+                    requests: { cpu: 10m, memory: 32Mi }
+                    limits: { memory: 128Mi }
+                  volumeMounts:
+                    - { name: work, mountPath: /work }
+              volumes:
+                - name: work
+                  emptyDir: { medium: Memory, sizeLimit: 1Mi }
+      readyWhen:
+        - ${job.status.?succeeded.orValue(0) > 0}
+
+    # The namespace's pods may reach the server's private endpoint (apps' default-deny blocks
+    # private addresses).
+    - id: clientPolicy
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: ${schema.metadata.name + "-database-clients"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appdatabase
+        spec:
+          podSelector: {}
+          policyTypes: [Egress]
+          egress:
+            - to:
+                - ipBlock:
+                    cidr: ${settings.data.privateEndpointSubnetPrefix}
+              ports:
+                - { port: 5432, protocol: TCP }
+
+    # Written once the job has created the database and role.
+    - id: connection
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name + "-database"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appdatabase
+          annotations:
+            platform.bluepave.dev/setup-job: ${job.metadata.name}
+        data:
+          PGHOST: ${settings.data.postgresHost}
+          PGPORT: "5432"
+          PGDATABASE: ${schema.metadata.namespace + "-" + schema.metadata.name}
+          PGUSER: ${schema.metadata.namespace + "-" + schema.metadata.name}
+          PGSSLMODE: require
+          DATABASE_AUTH: entra
+          DATABASE_CLIENT_ID: ${identity.status.clientId}

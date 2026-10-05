@@ -67,3 +67,25 @@ func TestDiscoverReportsEveryBrokenManifest(t *testing.T) {
 		}
 	}
 }
+
+// after orders a module behind another only when that one is enabled, and doesn't require it.
+func TestResolveAfter(t *testing.T) {
+	avail, err := Discover("testdata/after")
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	ordered, err := Resolve(avail, []string{"alpha", "zeta"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got := ordered[0].Metadata.Name + "," + ordered[1].Metadata.Name; got != "zeta,alpha" {
+		t.Errorf("install order = %s, want zeta,alpha", got)
+	}
+	ordered, err = Resolve(avail, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("Resolve without zeta: %v", err)
+	}
+	if len(ordered) != 1 || ordered[0].Metadata.Name != "alpha" {
+		t.Errorf("without zeta: got %d modules, want only alpha", len(ordered))
+	}
+}
