@@ -1,0 +1,4 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata: {name: aks, description: "Kubernetes cluster (test fixture)"}
+spec: {version: 0.1.0, outputs: [oidcIssuerUrl], layers: {docs: docs, infra: main.bicep}, tests: tests}

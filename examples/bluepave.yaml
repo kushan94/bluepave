@@ -1,0 +1,22 @@
+# Example configuration. Copy to the repository root as bluepave.yaml and edit; `bluepave
+# validate` checks it against api/v1alpha1/platform.schema.json.
+apiVersion: bluepave.dev/v1alpha1
+kind: Platform
+metadata:
+  name: acme-platform
+spec:
+  prefix: acme
+  profile: trial
+  azure:
+    region: westeurope
+  environments: [dev]
+  dns:
+    domain: platform.example.com
+  github:
+    owner: acme
+    platformRepo: acme-platform
+  admins:
+    group: acme-platform-admins
+  modules:
+    runtime-falco:
+      enabled: false

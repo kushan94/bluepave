@@ -1,0 +1,4 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata: {name: othername, description: "name does not match folder"}
+spec: {version: 0.1.0, layers: {docs: docs, gitops: docs}, tests: tests}

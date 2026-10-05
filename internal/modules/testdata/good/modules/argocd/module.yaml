@@ -1,0 +1,4 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata: {name: argocd, description: "GitOps engine (test fixture)"}
+spec: {version: 0.2.0, requires: [aks], layers: {docs: docs, gitops: docs}, tests: tests}
