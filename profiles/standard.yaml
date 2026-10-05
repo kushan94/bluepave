@@ -1,4 +1,5 @@
-# standard: a team's dev/test platform. Not yet proven end to end: see docs/design/configuration.md.
+# standard: a team's dev/test platform on a pay-as-you-go subscription.
+# Not yet proven end to end: see docs/design/configuration.md.
 apiVersion: bluepave.dev/v1alpha1
 kind: Profile
 metadata:
@@ -6,16 +7,25 @@ metadata:
 spec:
   cluster:
     tier: Standard
-    systemPool: { vmSize: Standard_D2ds_v5, count: 3 }
-    userPools:
-      - { name: apps, vmSize: Standard_D4ds_v5, spot: false, min: 2, max: 5 }
+    kubernetesVersion: "1.35"
     autoUpgrade: true
+    systemPool: { vmSize: Standard_D2ds_v5, count: 3, maxCount: 3, criticalAddonsOnly: true }
+    userPools:
+      - { name: apps, vmSize: Standard_D4ds_v5, spot: false, minCount: 2, maxCount: 5, surge: true }
+    privateCluster: false
+    advancedNetworking: false
+    addons: { keda: true, vpa: true, imageCleaner: true }
   network:
     egress: natGateway
+    allowPublicNetworkAccess: true
     privateEndpoints: false
-  registry: { sku: Standard }
-  data: { postgres: { sku: Standard_D2ds_v5, highAvailability: false }, cache: inCluster }
+  registry: { sku: Standard, repositoryPermissions: true, armTokenAuth: true }
+  keyVault: { purgeProtection: true, softDeleteDays: 30 }
+  logs: { retentionDays: 30, dailyQuotaGb: 5 }
+  budget: { monthly: 600 }
+  data:
+    postgres: { skuName: Standard_D2ds_v5, tier: GeneralPurpose, storageSizeGB: 64, highAvailability: Disabled, geoRedundantBackup: false, backupRetentionDays: 14 }
+    cache: inCluster
+  ingress: inCluster
   modules:
-    # Modules this profile turns on by default. Filled in as modules are ported (design doc, section 8);
-    # a profile only lists modules that exist.
-    defaultsEnabled: []
+    defaultsEnabled: [governance, monitoring, dns]

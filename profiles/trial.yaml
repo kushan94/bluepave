@@ -1,25 +1,41 @@
 # trial: learning and demos on an Azure Free Trial (4 regular + 3 Spot vCPUs per region).
-# Proven in the reference instance (Skyforge dev). Costs roughly US$3-5 a day; stop it at night.
+# Proven in the reference instance (Skyforge dev). Roughly US$3-5 a day; stop the cluster at night.
 apiVersion: bluepave.dev/v1alpha1
 kind: Profile
 metadata:
   name: trial
 spec:
   cluster:
-    tier: Free
-    systemPool: { vmSize: Standard_D2ds_v5, count: 1 }
-    # Apps on Spot (separate quota); one regular node for the portal and admission control.
-    userPools:
-      - { name: spot, vmSize: Standard_D2ds_v5, spot: true, min: 0, max: 1 }
-      - { name: apps, vmSize: Standard_D2ds_v5, spot: false, min: 1, max: 1 }
-    # The system pool's upgrade surge doesn't fit the quota: upgrades run by workflow.
+    tier: Free                      # no uptime SLA
+    kubernetesVersion: "1.35"
+    # The system pool's upgrade surge doesn't fit the quota next to the 'apps' node, so upgrades
+    # run by workflow (scale 'apps' to 0, upgrade, scale back).
     autoUpgrade: false
+    systemPool: { vmSize: Standard_D2ds_v5, count: 1, maxCount: 1, criticalAddonsOnly: false }
+    userPools:
+      # Apps on Spot (separate low-priority quota); one regular node for the portal and admission
+      # control. No quota for surge nodes, so pools replace nodes in place.
+      - { name: spot, vmSize: Standard_D2ds_v5, spot: true, minCount: 0, maxCount: 1, surge: false }
+      - { name: apps, vmSize: Standard_D2ds_v5, spot: false, minCount: 1, maxCount: 1, surge: false }
+    privateCluster: false
+    advancedNetworking: false
+    addons: { keda: false, vpa: false, imageCleaner: false }
   network:
-    egress: loadBalancer
+    egress: loadBalancer            # no NAT gateway or firewall
+    allowPublicNetworkAccess: true  # ACR and Key Vault data planes reachable by GitHub-hosted runners
     privateEndpoints: false
-  registry: { sku: Standard }
-  data: { postgres: { sku: Standard_B1ms, highAvailability: false }, cache: inCluster }
+  registry:
+    sku: Standard
+    repositoryPermissions: true     # per-app push rights (ABAC)
+    armTokenAuth: true              # Kyverno's Azure credential provider only requests ARM tokens
+  keyVault: { purgeProtection: false, softDeleteDays: 7 }
+  logs: { retentionDays: 30, dailyQuotaGb: 1 }
+  budget: { monthly: 100 }
+  data:
+    postgres: { skuName: Standard_B1ms, tier: Burstable, storageSizeGB: 32, highAvailability: Disabled, geoRedundantBackup: false, backupRetentionDays: 7 }
+    cache: inCluster
+  ingress: inCluster
   modules:
-    # Modules this profile turns on by default. Filled in as modules are ported (design doc, section 8);
-    # a profile only lists modules that exist.
-    defaultsEnabled: []
+    # Modules this profile turns on by default. Filled in as modules are ported (design doc,
+    # section 8); a profile only lists modules that exist.
+    defaultsEnabled: [governance, monitoring, dns]

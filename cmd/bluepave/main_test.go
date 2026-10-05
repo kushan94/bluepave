@@ -8,7 +8,7 @@ import (
 
 func TestValidateExample(t *testing.T) {
 	var out, errOut bytes.Buffer
-	code := run([]string{"validate", "-f", "../../examples/bluepave.yaml", "-root", "../.."}, &out, &errOut)
+	code := run([]string{"validate", "-f", "../../bluepave.yaml", "-root", "../.."}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, errOut.String())
 	}

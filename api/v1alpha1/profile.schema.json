@@ -2,36 +2,350 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://bluepave.dev/schemas/v1alpha1/profile.schema.json",
   "title": "bluepave profile (profiles/<name>.yaml)",
-  "description": "A preset of sizing and default modules (ADR-0001).",
+  "description": "A preset of sizing and default modules (ADR-0001). Adopters override values in bluepave.yaml where the platform schema allows.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
   "properties": {
-    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
-    "kind": { "const": "Profile" },
+    "apiVersion": {
+      "const": "bluepave.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "Profile"
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
-      "properties": { "name": { "enum": ["trial", "standard", "production"] } }
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "trial",
+            "standard",
+            "production"
+          ]
+        }
+      }
     },
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cluster", "network", "registry", "data", "modules"],
+      "required": [
+        "cluster",
+        "network",
+        "registry",
+        "keyVault",
+        "logs",
+        "budget",
+        "data",
+        "ingress",
+        "modules"
+      ],
       "properties": {
-        "cluster": { "type": "object" },
-        "network": { "type": "object" },
-        "registry": { "type": "object" },
-        "data": { "type": "object" },
+        "cluster": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tier",
+            "kubernetesVersion",
+            "autoUpgrade",
+            "systemPool",
+            "userPools",
+            "privateCluster",
+            "advancedNetworking",
+            "addons"
+          ],
+          "properties": {
+            "tier": {
+              "enum": [
+                "Free",
+                "Standard"
+              ]
+            },
+            "kubernetesVersion": {
+              "type": "string",
+              "pattern": "^1\\.[0-9]{2}$"
+            },
+            "autoUpgrade": {
+              "type": "boolean"
+            },
+            "systemPool": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "vmSize",
+                "count",
+                "maxCount",
+                "criticalAddonsOnly"
+              ],
+              "properties": {
+                "vmSize": {
+                  "type": "string",
+                  "pattern": "^Standard_"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxCount": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "criticalAddonsOnly": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "userPools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "vmSize",
+                  "spot",
+                  "minCount",
+                  "maxCount",
+                  "surge"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]{0,11}$"
+                  },
+                  "vmSize": {
+                    "type": "string",
+                    "pattern": "^Standard_"
+                  },
+                  "spot": {
+                    "type": "boolean"
+                  },
+                  "minCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "maxCount": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "surge": {
+                    "type": "boolean",
+                    "description": "Upgrade with a surge node (needs spare quota) or replace nodes in place. Ignored for Spot pools."
+                  }
+                }
+              }
+            },
+            "privateCluster": {
+              "type": "boolean"
+            },
+            "advancedNetworking": {
+              "type": "boolean"
+            },
+            "addons": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "keda",
+                "vpa",
+                "imageCleaner"
+              ],
+              "properties": {
+                "keda": {
+                  "type": "boolean"
+                },
+                "vpa": {
+                  "type": "boolean"
+                },
+                "imageCleaner": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "egress",
+            "allowPublicNetworkAccess",
+            "privateEndpoints"
+          ],
+          "properties": {
+            "egress": {
+              "enum": [
+                "loadBalancer",
+                "natGateway",
+                "firewall"
+              ]
+            },
+            "allowPublicNetworkAccess": {
+              "type": "boolean"
+            },
+            "privateEndpoints": {
+              "type": "boolean"
+            }
+          }
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku",
+            "repositoryPermissions",
+            "armTokenAuth"
+          ],
+          "properties": {
+            "sku": {
+              "enum": [
+                "Standard",
+                "Premium"
+              ]
+            },
+            "repositoryPermissions": {
+              "type": "boolean"
+            },
+            "armTokenAuth": {
+              "type": "boolean"
+            }
+          }
+        },
+        "keyVault": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "purgeProtection",
+            "softDeleteDays"
+          ],
+          "properties": {
+            "purgeProtection": {
+              "type": "boolean"
+            },
+            "softDeleteDays": {
+              "type": "integer",
+              "minimum": 7,
+              "maximum": 90
+            }
+          }
+        },
+        "logs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retentionDays",
+            "dailyQuotaGb"
+          ],
+          "properties": {
+            "retentionDays": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 730
+            },
+            "dailyQuotaGb": {
+              "type": "integer",
+              "minimum": -1
+            }
+          }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "monthly"
+          ],
+          "properties": {
+            "monthly": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "postgres",
+            "cache"
+          ],
+          "properties": {
+            "postgres": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "skuName",
+                "tier",
+                "storageSizeGB",
+                "highAvailability",
+                "geoRedundantBackup",
+                "backupRetentionDays"
+              ],
+              "properties": {
+                "skuName": {
+                  "type": "string",
+                  "pattern": "^Standard_"
+                },
+                "tier": {
+                  "enum": [
+                    "Burstable",
+                    "GeneralPurpose",
+                    "MemoryOptimized"
+                  ]
+                },
+                "storageSizeGB": {
+                  "type": "integer",
+                  "minimum": 32
+                },
+                "highAvailability": {
+                  "enum": [
+                    "Disabled",
+                    "ZoneRedundant"
+                  ]
+                },
+                "geoRedundantBackup": {
+                  "type": "boolean"
+                },
+                "backupRetentionDays": {
+                  "type": "integer",
+                  "minimum": 7,
+                  "maximum": 35
+                }
+              }
+            },
+            "cache": {
+              "enum": [
+                "inCluster",
+                "azureManagedRedis"
+              ]
+            }
+          }
+        },
+        "ingress": {
+          "enum": [
+            "inCluster",
+            "agc"
+          ]
+        },
         "modules": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["defaultsEnabled"],
+          "required": [
+            "defaultsEnabled"
+          ],
           "properties": {
             "defaultsEnabled": {
               "type": "array",
-              "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,40}$"
+              },
               "uniqueItems": true
             }
           }

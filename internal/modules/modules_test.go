@@ -17,6 +17,9 @@ func TestDiscoverAndResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
+	if s := avail["aks"].Spec.InfraScope; s != "environment" {
+		t.Errorf("infraScope default = %q, want environment", s)
+	}
 	if got := ordered[0].Metadata.Name + "," + ordered[1].Metadata.Name; got != "aks,argocd" {
 		t.Errorf("install order = %s, want aks,argocd (requirements first)", got)
 	}

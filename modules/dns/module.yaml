@@ -1,0 +1,13 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: dns
+  description: The public DNS zone for spec.dns.domain and a delegated subzone per environment
+spec:
+  version: 0.1.0
+  infraScope: global
+  outputs: [nameServers, environmentZones]
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests

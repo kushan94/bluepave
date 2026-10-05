@@ -1,0 +1,13 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: monitoring
+  description: Log Analytics and an Azure Monitor workspace (managed Prometheus) per environment
+spec:
+  version: 0.1.0
+  infraScope: environment
+  outputs: [logAnalyticsWorkspaceId, monitorWorkspaceId]
+  layers:
+    infra: infra/main.bicep
+    docs: docs
+  tests: tests

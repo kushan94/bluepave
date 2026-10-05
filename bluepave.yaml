@@ -1,5 +1,6 @@
-# Example configuration. Copy to the repository root as bluepave.yaml and edit; `bluepave
-# validate` checks it against api/v1alpha1/platform.schema.json.
+# The platform's configuration: the only file to edit after creating your repository from the
+# bluepave template. `bluepave validate` checks it against api/v1alpha1/platform.schema.json.
+# The values below are an example (acme); replace them with yours.
 apiVersion: bluepave.dev/v1alpha1
 kind: Platform
 metadata:

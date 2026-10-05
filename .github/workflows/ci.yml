@@ -33,12 +33,45 @@ jobs:
 
       - name: Example and every profile validate
         run: |
-          "$RUNNER_TEMP/bluepave" validate -f examples/bluepave.yaml
+          "$RUNNER_TEMP/bluepave" validate -f bluepave.yaml
           for p in profiles/*.yaml; do
             name=$(basename "$p" .yaml)
-            sed "s/profile: trial/profile: $name/" examples/bluepave.yaml > "$RUNNER_TEMP/$name.yaml"
+            sed "s/profile: trial/profile: $name/" bluepave.yaml > "$RUNNER_TEMP/$name.yaml"
             "$RUNNER_TEMP/bluepave" validate -f "$RUNNER_TEMP/$name.yaml"
           done
 
       - name: Every module manifest is valid
         run: '"$RUNNER_TEMP/bluepave" modules'
+
+  infra:
+    name: Module infra layers (Bicep)
+    runs-on: ubuntu-latest
+    env:
+      BICEP_VERSION: v0.47.16
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Bicep
+        run: az bicep install --version "$BICEP_VERSION"
+
+      # Every module's infra layer and the shared library build and lint cleanly, with the
+      # repository's bluepave.yaml under every profile (the library reads them at compile time).
+      - name: Build and lint, per profile
+        run: |
+          set -euo pipefail
+          cp bluepave.yaml "$RUNNER_TEMP/bluepave.orig.yaml"
+          status=0
+          for profile in profiles/*.yaml; do
+            name=$(basename "$profile" .yaml)
+            sed "s/profile: trial/profile: $name/" "$RUNNER_TEMP/bluepave.orig.yaml" > bluepave.yaml
+            for f in lib/bicep/platform.test.bicep modules/*/infra/main.bicep; do
+              [[ -f $f ]] || continue
+              if out=$(az bicep build --file "$f" --stdout 2>&1 >/dev/null) && ! grep -qE 'Warning|Error' <<<"$out"; then
+                echo "ok   $name  $f"
+              else
+                echo "::error file=$f::($name) $out"; status=1
+              fi
+            done
+          done
+          cp "$RUNNER_TEMP/bluepave.orig.yaml" bluepave.yaml
+          exit $status
