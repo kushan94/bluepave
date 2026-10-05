@@ -94,7 +94,7 @@ module cluster 'cluster.bicep' = {
   }
 }
 
-module registryPull 'registry-pull.bicep' = {
+module registryPull '../../../lib/bicep/registry-pull.bicep' = {
   scope: resourceGroup(names.rgShared)
   params: {
     registryName: names.containerRegistry

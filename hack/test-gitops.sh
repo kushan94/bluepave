@@ -24,6 +24,10 @@ kubeconform_() {
     "$@"
 }
 
+# The names of the documents in a multi-document file that match a yq filter (yq prints a "---"
+# between documents).
+names() { yq -r "$2 | .metadata.name" "$1" | grep -v '^---$' || true; }
+
 status=0
 for profile in profiles/*.yaml; do
   name=$(basename "$profile" .yaml)
@@ -40,7 +44,7 @@ for profile in profiles/*.yaml; do
     kubeconform_ "$dir/root.yaml" || status=1
 
     # Each module Application: render its chart with the values the root gave it.
-    for app in $(yq -r 'select(.kind == "Application") | .metadata.name' "$dir/root.yaml"); do
+    for app in $(names "$dir/root.yaml" 'select(.kind == "Application")'); do
       path=$(yq -r "select(.metadata.name == \"$app\") | .spec.source.path" "$dir/root.yaml")
       yq "select(.metadata.name == \"$app\") | .spec.source.helm.valuesObject" "$dir/root.yaml" > "$dir/$app.values.yaml"
       echo "== $name/$env: $app ($path)"
@@ -50,7 +54,7 @@ for profile in profiles/*.yaml; do
 
       # Applications the module installs from a Helm repository: render the upstream chart with
       # the computed values, which catches values the chart rejects.
-      for sub in $(yq -r 'select(.kind == "Application" and .spec.source.chart != null) | .metadata.name' "$dir/modules/$app.yaml"); do
+      for sub in $(names "$dir/modules/$app.yaml" 'select(.kind == "Application" and .spec.source.chart != null)'); do
         q="select(.metadata.name == \"$sub\")"
         repo=$(yq -r "$q | .spec.source.repoURL" "$dir/modules/$app.yaml")
         chart=$(yq -r "$q | .spec.source.chart" "$dir/modules/$app.yaml")

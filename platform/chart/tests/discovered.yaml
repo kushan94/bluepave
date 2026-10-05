@@ -9,5 +9,9 @@ discovered:
     principalId: 00000000-0000-0000-0000-00000000000c
   environments:
     dev:
-      argocd:
+      gitops-argocd:
         clientId: 00000000-0000-0000-0000-00000000000d
+      keyvault:
+        keyVaultUri: https://kv-acme-dev-we-abcde.vault.azure.net/
+      secrets-external:
+        clientId: 00000000-0000-0000-0000-00000000000e

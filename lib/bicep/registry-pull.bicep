@@ -1,6 +1,6 @@
-// Lets the kubelet pull images from the environment's registry, with no image pull secrets. With
-// repository permissions (ABAC) the registry ignores AcrPull, so the kubelet gets Container Registry
-// Repository Reader (all repositories) instead.
+// Lets an identity (the kubelet, Kargo, Kyverno) pull images from the environment's registry, with
+// no image pull secrets. With repository permissions (ABAC) the registry ignores AcrPull, so the
+// identity gets Container Registry Repository Reader (all repositories) instead.
 
 @description('Container registry name.')
 param registryName string
