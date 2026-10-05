@@ -43,13 +43,15 @@ promoted, running app on AKS.**
 ## Getting started (in progress)
 
 ```bash
-go run ./cmd/bluepave validate -f bluepave.yaml  # check the configuration, module settings and apps/*.yaml
+go run ./cmd/bluepave validate                   # check the configuration, module settings and apps/*.yaml
 go run ./cmd/bluepave modules                    # list available modules
 go run ./cmd/bluepave render                     # resolve modules for GitOps (.bluepave/resolved.yaml)
+go run ./cmd/bluepave plan [-what-if]            # the deployment stacks, in order (and their Azure changes)
+go run ./cmd/bluepave up -step infra             # deploy the modules' Azure resources, record their outputs
 ```
 
-`bluepave up` and the modules arrive in the next steps
-([docs/design/configuration.md](docs/design/configuration.md), section 8).
+`up` also needs to create identities, the GitHub App and Entra apps, and bootstrap Argo CD; those
+steps are next ([docs/design/configuration.md](docs/design/configuration.md), section 8).
 
 ## Contributing
 

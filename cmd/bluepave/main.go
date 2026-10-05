@@ -25,6 +25,12 @@ Usage:
   bluepave render   [-f bluepave.yaml] [-root .] [-o file] [-check]
                                                    write .bluepave/resolved.yaml for GitOps
                                                    (-check: fail if it's out of date)
+  bluepave plan     [-f bluepave.yaml] [-env dev] [-module name] [-what-if]
+                                                   list the deployment stacks in order
+                                                   (-what-if: preview each in Azure)
+  bluepave up       [-f bluepave.yaml] [-step infra] [-env dev] [-module name] [-yes]
+                                                   deploy the modules' Azure resources and
+                                                   record their outputs in .bluepave/discovered.yaml
   bluepave modules  [-root .]                      list the available modules
   bluepave version
 `
@@ -43,6 +49,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return validate(args[1:], stdout, stderr)
 	case "render":
 		return renderCmd(args[1:], stdout, stderr)
+	case "plan":
+		return planCmd(args[1:], stdout, stderr)
+	case "up":
+		return upCmd(args[1:], stdout, stderr)
 	case "modules":
 		return listModules(args[1:], stdout, stderr)
 	case "version", "--version":
@@ -222,3 +232,5 @@ func sortedOverrides(m map[string]config.ModuleOverride) []string {
 	sort.Strings(out)
 	return out
 }
+
+func sortStrings(s []string) { sort.Strings(s) }

@@ -4,8 +4,8 @@ targetScope = 'subscription'
 
 import { budgetContactEmails, budgetFor, environmentNames, location, platformName, prefix } from '../../../lib/bicep/platform.bicep'
 
-@description('First day of the month the budgets start (yyyy-MM-01). Budgets can\'t start in the past; `bluepave up` records the first value and reuses it.')
-param budgetStartDate string
+@description('First day of the month the budgets start (yyyy-MM-01). Budgets can\'t start in the past or change their start, so the first deployment picks this month and `bluepave up` passes the recorded output back from then on.')
+param budgetStartDate string = '${utcNow('yyyy-MM')}-01'
 
 @description('Tags that resources inherit from their resource group when missing (keeps cost reports by env complete).')
 param inheritedTags string[] = ['env', 'platform']
@@ -116,3 +116,6 @@ resource budgets 'Microsoft.Consumption/budgets@2026-06-01' = [
     }
   }
 ]
+
+@description('The budgets\' start date, passed back as the parameter on later deployments.')
+output budgetStartDate string = budgetStartDate
