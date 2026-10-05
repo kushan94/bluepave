@@ -38,6 +38,40 @@ spec:
     images: [api]                                # built by the golden path as <name>-api
 ```
 
+## Building images: the golden path
+
+The app's repository calls the platform's reusable workflow, which runs the checks, builds,
+scans and, on `main`, publishes and signs:
+
+```yaml
+# .github/workflows/build.yml in the app's repository
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build:
+    uses: <owner>/<platformRepo>/.github/workflows/build-app.yml@main   # or a release tag, @v1
+    permissions: { contents: read, id-token: write }
+    with:
+      app: greeter
+      publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      registry: ${{ vars.BLUEPAVE_REGISTRY }}
+      azure-tenant-id: ${{ vars.BLUEPAVE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.BLUEPAVE_SUBSCRIPTION_ID }}
+      azure-client-id: ${{ vars.BLUEPAVE_CLIENT_ID }}
+```
+
+- **Layout:** a `Dockerfile` taking build arg `APP=<component>`, and one image per folder in
+  `cmd/`. Without `cmd/`, the app has a single image, `<name>-web`.
+- **Checks** run by what the app has:
+  - Go: gofmt, vet, tests, govulncheck;
+  - Python: ruff, pytest, pip-audit, hashed requirements;
+  - always: gitleaks, Semgrep, Trivy (dependencies, Dockerfile, secrets, the rendered chart).
+- **Image:** pushed with an SBOM and SLSA provenance, scanned again, then signed with Cosign
+  keyless. Only images signed by this workflow (at `main` or a release tag) are admitted
+  (`policy-kyverno`).
+
 The full contract is [api/v1alpha1/app.schema.json](../api/v1alpha1/app.schema.json). Run
 `bluepave validate` before merging: it checks every app file.
 

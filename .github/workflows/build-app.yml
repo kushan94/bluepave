@@ -1,0 +1,310 @@
+name: build-app
+
+# The platform's golden-path pipeline for one app. App repositories call it from this (the
+# platform) repository:
+#
+#   jobs:
+#     build:
+#       uses: <owner>/<platformRepo>/.github/workflows/build-app.yml@v1   # or @main
+#       permissions: { contents: read, id-token: write }
+#       with:
+#         app: myapp
+#         publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+#         registry: ${{ vars.BLUEPAVE_REGISTRY }}
+#         azure-tenant-id: ${{ vars.BLUEPAVE_TENANT_ID }}
+#         azure-subscription-id: ${{ vars.BLUEPAVE_SUBSCRIPTION_ID }}
+#         azure-client-id: ${{ vars.BLUEPAVE_CLIENT_ID }}   # the app's CI identity
+#
+# (`bluepave up` sets those repository variables when it onboards an app repository.)
+#
+# PRs and main: source checks (secrets, SAST, dependencies, misconfig, tests), then each image is
+# built and scanned (fails on fixable HIGH/CRITICAL). With publish: push <app>-<component> to the
+# registry with SBOM + SLSA provenance, scan it again, and sign it with Cosign (keyless).
+#
+# The signing certificate names this workflow (job_workflow_ref) at the ref the caller used, not
+# the caller, so the cluster trusts one identity: this repository's build-app.yml at main or a
+# release tag (policy-kyverno). Which images a caller may push is decided by its Azure identity
+# (registry repository permissions).
+#
+# App layout (apps/README.md): a Dockerfile at app-dir (build arg APP=<component>), and either one
+# image per folder in cmd/ or, without cmd/, a single image <app>-web. Language checks run by what
+# the app has: Go (go.mod) and Python (pyproject.toml or requirements.txt).
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: App name; images are <app>-<component>
+        type: string
+        required: true
+      app-dir:
+        description: The app's folder in the calling repository
+        type: string
+        default: .
+      publish:
+        description: Push, scan and sign the images (main only)
+        type: boolean
+        default: false
+      azure-client-id:
+        description: Client ID of the identity that may push this app's images (publish only)
+        type: string
+        default: ""
+      azure-tenant-id:
+        description: Entra tenant of the platform (publish only)
+        type: string
+        default: ""
+      azure-subscription-id:
+        description: Azure subscription of the platform (publish only)
+        type: string
+        default: ""
+      registry:
+        description: The platform registry's login server, e.g. crexample.azurecr.io (publish only)
+        type: string
+        default: ""
+      environment:
+        description: GitHub environment of the publish job; part of the OIDC subject Azure trusts
+        type: string
+        default: dev
+
+permissions:
+  contents: read
+
+env:
+  # Scanners are downloaded from their official releases and checked against these hashes (a
+  # reusable workflow can't use a local action of its own repository, so no shared action).
+  TRIVY_VERSION: 0.75.0
+  TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+  SEMGREP_VERSION: 1.179.0
+  GOVULNCHECK_VERSION: v1.8.0
+  PIP_AUDIT_VERSION: 2.10.1
+  APP_DIR: ${{ inputs.app-dir }}
+
+jobs:
+  plan:
+    name: Components
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.components.outputs.components }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: One image per folder in cmd/, or one image "web"
+        id: components
+        run: |
+          [[ -f $APP_DIR/Dockerfile ]] || { echo "::error::$APP_DIR needs a Dockerfile (apps/README.md)"; exit 1; }
+          if [[ -d $APP_DIR/cmd ]]; then
+            components=$(find "$APP_DIR/cmd" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | jq -Rnc '[inputs]')
+          else
+            components='["web"]'
+          fi
+          echo "components=$components" | tee -a "$GITHUB_OUTPUT"
+
+  source:
+    name: Source checks
+    needs: plan
+    runs-on: ubuntu-latest
+    env:
+      COMPONENTS: ${{ needs.plan.outputs.components }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: hashFiles(format('{0}/go.mod', inputs.app-dir)) != ''
+        with:
+          go-version-file: ${{ inputs.app-dir }}/go.mod
+          # Apps with no dependencies have no go.sum, and nothing to cache.
+          cache: ${{ hashFiles(format('{0}/go.sum', inputs.app-dir)) != '' }}
+          cache-dependency-path: ${{ inputs.app-dir }}/go.sum
+
+      - name: Install Trivy and Gitleaks (pinned, checksums verified)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/scanners"; mkdir -p "$bin"; cd "$RUNNER_TEMP"
+          curl -fsSLo trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY_VERSION/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz -C "$bin" trivy
+          curl -fsSLo gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz -C "$bin" gitleaks
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: Secrets in git history (gitleaks)
+        # Only history reachable from this commit (the PR + main), not other branches.
+        run: gitleaks git --redact --no-banner --log-opts=HEAD .
+
+      - name: Format, vet, unit tests (Go)
+        if: hashFiles(format('{0}/go.mod', inputs.app-dir)) != ''
+        working-directory: ${{ inputs.app-dir }}
+        run: |
+          unformatted=$(gofmt -l .)
+          [[ -z $unformatted ]] || { echo "::error::not gofmt-ed: $unformatted"; exit 1; }
+          go vet ./...
+          go test -race -count=1 ./...
+
+      - name: Reachable Go vulnerabilities (govulncheck)
+        if: hashFiles(format('{0}/go.mod', inputs.app-dir)) != ''
+        working-directory: ${{ inputs.app-dir }}
+        run: go run "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION" ./...
+
+      # --- Python (pyproject.toml or requirements.txt) ---------------------------------------------
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: hashFiles(format('{0}/pyproject.toml', inputs.app-dir), format('{0}/requirements.txt', inputs.app-dir)) != ''
+        with:
+          python-version-file: ${{ inputs.app-dir }}/.python-version
+
+      - name: Lint, format, unit tests (Python)
+        if: hashFiles(format('{0}/pyproject.toml', inputs.app-dir), format('{0}/requirements.txt', inputs.app-dir)) != ''
+        working-directory: ${{ inputs.app-dir }}
+        run: |
+          python -m venv "$RUNNER_TEMP/venv" && source "$RUNNER_TEMP/venv/bin/activate"
+          # Pinned and hashed by the app (requirements*.txt); pip refuses anything else.
+          pip install --quiet --require-hashes -r requirements.txt -r requirements-dev.txt
+          ruff check .
+          ruff format --check .
+          pytest -q
+
+      - name: Known Python vulnerabilities (pip-audit)
+        if: hashFiles(format('{0}/requirements.txt', inputs.app-dir)) != ''
+        working-directory: ${{ inputs.app-dir }}
+        run: pipx run "pip-audit==$PIP_AUDIT_VERSION" --strict --require-hashes -r requirements.txt
+
+      - name: SAST (Semgrep)
+        run: |
+          pipx run "semgrep==$SEMGREP_VERSION" scan --metrics=off --error \
+            --config p/golang --config p/python --config p/dockerfile --config p/javascript --config p/secrets \
+            "$APP_DIR"
+
+      - name: Dependencies, Dockerfile and secrets (Trivy)
+        run: |
+          trivy fs --quiet --scanners vuln,misconfig,secret --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 "$APP_DIR"
+
+      - name: Kubernetes manifests (Trivy on the rendered chart)
+        if: hashFiles(format('{0}/deploy/chart/Chart.yaml', inputs.app-dir)) != ''
+        run: |
+          # A placeholder digest per component, as Kargo would write.
+          zero=sha256:$(printf '0%.0s' $(seq 64))
+          digests=$(for c in $(jq -r '.[]' <<<"$COMPONENTS"); do printf 'images.%s.digest=%s,' "$c" "$zero"; done)
+          trivy config --quiet --severity MEDIUM,HIGH,CRITICAL --exit-code 1 \
+            --helm-values "$APP_DIR/deploy/values-dev.yaml" \
+            --helm-set "${digests%,}" \
+            "$APP_DIR/deploy/chart"
+
+  image:
+    name: Image scan (${{ inputs.app }}-${{ matrix.component }})
+    needs: [plan, source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJSON(needs.plan.outputs.components) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Trivy (pinned, checksum verified)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/scanners"; mkdir -p "$bin"; cd "$RUNNER_TEMP"
+          curl -fsSLo trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY_VERSION/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz -C "$bin" trivy
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.app-dir }}
+          build-args: |
+            APP=${{ matrix.component }}
+            VERSION=${{ github.sha }}
+          load: true
+          tags: ${{ inputs.app }}-${{ matrix.component }}:scan
+          cache-from: type=gha,scope=${{ inputs.app }}-${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.app }}-${{ matrix.component }}
+
+      - name: Scan image (fails on fixable HIGH/CRITICAL)
+        run: |
+          trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 "${{ inputs.app }}-${{ matrix.component }}:scan"
+
+  publish:
+    name: Publish (${{ inputs.app }}-${{ matrix.component }})
+    if: inputs.publish
+    needs: [plan, image]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write # Azure login and Cosign keyless signing
+    strategy:
+      fail-fast: true
+      matrix:
+        component: ${{ fromJSON(needs.plan.outputs.components) }}
+    env:
+      IMAGE: ${{ inputs.registry }}/${{ inputs.app }}-${{ matrix.component }}
+    steps:
+      - name: Check inputs
+        if: inputs.azure-client-id == '' || inputs.azure-tenant-id == '' || inputs.azure-subscription-id == '' || inputs.registry == ''
+        run: |
+          echo "::error::publish needs registry, azure-tenant-id, azure-subscription-id and azure-client-id (repository variables BLUEPAVE_*, set by bluepave up)"
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Trivy (pinned, checksum verified)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/scanners"; mkdir -p "$bin"; cd "$RUNNER_TEMP"
+          curl -fsSLo trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY_VERSION/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz -C "$bin" trivy
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ inputs.azure-client-id }}
+          tenant-id: ${{ inputs.azure-tenant-id }}
+          subscription-id: ${{ inputs.azure-subscription-id }}
+
+      - name: Log in to ACR
+        env:
+          REGISTRY: ${{ inputs.registry }}
+        run: az acr login --name "${REGISTRY%%.*}"
+
+      - name: Build and push with SBOM and provenance
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.app-dir }}
+          build-args: |
+            APP=${{ matrix.component }}
+            VERSION=${{ github.sha }}
+          push: true
+          # Immutable tag (the commit); deployments use the digest.
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # BuildKit attaches an SPDX SBOM and SLSA provenance to the image index.
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=${{ inputs.app }}-${{ matrix.component }}
+
+      - name: Scan the pushed image
+        run: |
+          trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 "$IMAGE@${{ steps.build.outputs.digest }}"
+
+      - name: Sign (Cosign keyless with GitHub OIDC)
+        # Signing the index digest also covers the SBOM and provenance attached to it.
+        run: cosign sign --yes "$IMAGE@${{ steps.build.outputs.digest }}"
+
+      - name: Summary
+        run: |
+          echo "### ${{ inputs.app }}-${{ matrix.component }}: \`$IMAGE@${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Scanned, signed, with SBOM and provenance. The app's Kargo Warehouse picks it up." >> "$GITHUB_STEP_SUMMARY"
