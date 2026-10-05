@@ -5,27 +5,44 @@
   "description": "One app on the platform: its stages, where its chart lives, and how releases are delivered. The platform creates the namespaces, the app's Argo CD project, one Application per stage and the Kargo pipeline from it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
   "properties": {
-    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
-    "kind": { "const": "App" },
+    "apiVersion": {
+      "const": "bluepave.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "App"
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "description": "The app's name: images are <registry>/<name>-<image>, namespaces <name>-<stage>, the Kargo project kargo-<name>. Must match the file name.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]{1,28}[a-z0-9]$"
         },
-        "description": { "type": "string", "maxLength": 200 }
+        "description": {
+          "type": "string",
+          "maxLength": 200
+        }
       }
     },
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stages", "source"],
+      "required": [
+        "stages",
+        "source"
+      ],
       "properties": {
         "stages": {
           "description": "Stages in promotion order. Each gets a namespace <name>-<stage> and an Argo CD Application rendering the chart with values-<stage>.yaml next to the chart's folder.",
@@ -34,12 +51,20 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "properties": {
-              "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,14}$" },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,14}$"
+              },
               "environment": {
                 "description": "The cluster this stage runs on (bluepave.yaml spec.environments). Default: dev. Promotion across clusters isn't supported yet: each cluster's pipeline covers its own stages.",
-                "enum": ["dev", "prod"]
+                "enum": [
+                  "dev",
+                  "prod"
+                ]
               }
             }
           }
@@ -47,10 +72,12 @@
         "source": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["repoURL", "path"],
+          "required": [
+            "path"
+          ],
           "properties": {
             "repoURL": {
-              "description": "The app's repository, https://github.com/<owner>/<repo>. Argo CD and Kargo reach it through the platform's GitHub App, so it must belong to the platform's GitHub owner.",
+              "description": "The app's repository, https://github.com/<owner>/<repo>. Default: the platform repository (bluepave.yaml spec.github). Argo CD and Kargo reach it through the platform's GitHub App, so it must belong to the platform's GitHub owner.",
               "type": "string",
               "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$"
             },
@@ -59,7 +86,10 @@
               "type": "string",
               "minLength": 1
             },
-            "targetRevision": { "type": "string", "default": "main" }
+            "targetRevision": {
+              "type": "string",
+              "default": "main"
+            }
           }
         },
         "delivery": {
@@ -71,7 +101,10 @@
               "description": "Image names the golden path builds for this app: <registry>/<name>-<image>. The generated pipeline creates Freight when all of them come from the same commit.",
               "type": "array",
               "minItems": 1,
-              "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,30}$" },
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,30}$"
+              },
               "uniqueItems": true
             }
           }
@@ -79,8 +112,15 @@
         "namespaceLabels": {
           "description": "Extra labels on the app's namespaces. Keys under platform.bluepave.dev/ are reserved.",
           "type": "object",
-          "propertyNames": { "not": { "pattern": "^platform\\.bluepave\\.dev/" } },
-          "additionalProperties": { "type": "string", "maxLength": 63 }
+          "propertyNames": {
+            "not": {
+              "pattern": "^platform\\.bluepave\\.dev/"
+            }
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 63
+          }
         }
       }
     }

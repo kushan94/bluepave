@@ -34,8 +34,9 @@ spec:
     - name: staging
     # - { name: prod, environment: prod }   # a stage on the prod cluster
   source:
-    repoURL: https://github.com/<owner>/greeter   # must belong to the platform's GitHub owner
-    path: deploy/chart                           # values-<stage>.yaml live in deploy/
+    path: services/greeter/deploy/chart          # values-<stage>.yaml live in services/greeter/deploy/
+    # repoURL: https://github.com/<owner>/greeter # default: this repository; another one must
+    #                                             # belong to the platform's GitHub owner
   delivery:
     images: [api]                                # built by the golden path as <name>-api
 ```

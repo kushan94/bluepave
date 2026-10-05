@@ -59,7 +59,7 @@ func LoadApps(root string, p *Platform) ([]*App, error) {
 			}
 		}
 		owner := "https://github.com/" + p.Spec.GitHub.Owner + "/"
-		if !strings.HasPrefix(strings.ToLower(a.Spec.Source.RepoURL), strings.ToLower(owner)) {
+		if a.Spec.Source.RepoURL != "" && !strings.HasPrefix(strings.ToLower(a.Spec.Source.RepoURL), strings.ToLower(owner)) {
 			problems = append(problems, fmt.Errorf("%s: source.repoURL must be a repository of %s (the platform's GitHub App only reaches that owner)", f, owner))
 		}
 		apps = append(apps, &a)

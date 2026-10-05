@@ -11,7 +11,6 @@ spec:
     - { name: dev, environment: __ENVIRONMENT__ }
     - { name: staging, environment: __ENVIRONMENT__ }
   source:
-    repoURL: https://github.com/__GITHUB_OWNER__/__PLATFORM_REPO__
     path: services/anvil/deploy/chart
   delivery:
     images: [web, api, worker]
