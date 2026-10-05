@@ -62,6 +62,7 @@ resolved:
         - gitops-argocd
         - secrets-external
         - certificates
+        - delivery-kargo
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -95,8 +96,6 @@ resolved:
           type: helm
     - name: data-postgres
       version: 0.1.0
-    - name: governance
-      version: 0.1.0
     - name: keyvault
       version: 0.1.0
     - name: secrets-external
@@ -105,3 +104,11 @@ resolved:
       sources:
         - url: https://charts.external-secrets.io
           type: helm
+    - name: delivery-kargo
+      version: 0.1.0
+      gitops: modules/delivery-kargo/gitops
+      sources:
+        - url: ghcr.io/akuity/kargo-charts
+          type: oci
+    - name: governance
+      version: 0.1.0

@@ -1,0 +1,39 @@
+# Base values for the kargo chart. templates/kargo.yaml adds the controller's client ID and
+# scheduling. Delivery pipelines (Projects, Warehouses, Stages) come from app onboarding.
+
+api:
+  # Admin password hash and token-signing key come from Key Vault through External Secrets
+  # (templates/secrets.yaml); Helm generates nothing.
+  secret:
+    name: kargo-api
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+controller:
+  # The controller reads image metadata from ACR with Workload Identity (no registry secret).
+  podLabels:
+    azure.workload.identity/use: "true"
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+managementController:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+webhooksServer:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+garbageCollector:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+# Inbound webhooks (e.g. from the registry) would trigger instant discovery; Warehouses poll
+# instead, which is enough here and keeps one more component off small clusters.
+externalWebhooksServer:
+  enabled: false
