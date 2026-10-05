@@ -1,0 +1,6 @@
+# Stage dev. Kargo writes the image below on every promotion.
+images:
+  web:
+    repository: ""
+    tag: ""
+    digest: ""

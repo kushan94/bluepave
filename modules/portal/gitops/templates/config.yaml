@@ -1,0 +1,102 @@
+{{- if eq (include "portal.here" .) "true" }}
+{{- $ctx := .Values.bluepave }}
+{{- $ns := include "portal.namespace" . }}
+{{- $url := printf "https://portal.%s" $ctx.domain }}
+{{- $repo := printf "https://github.com/%s/%s" $ctx.github.owner $ctx.github.platformRepo }}
+{{- $behindGateway := has "edge-gateway" $ctx.modules }}
+{{- $ids := index $ctx.discovered "portal" | default dict }}
+
+{{- /* Home page links: the platform UIs this platform has, and its repository. */ -}}
+{{- $tools := list }}
+{{- if and $behindGateway (has "gitops-argocd" $ctx.modules) }}
+{{- $tools = append $tools (dict "url" (printf "https://argocd.%s" $ctx.domain) "label" "Argo CD" "icon" "kind:component") }}
+{{- end }}
+{{- if and $behindGateway (has "observability" $ctx.modules) }}
+{{- $tools = append $tools (dict "url" (printf "https://grafana.%s" $ctx.domain) "label" "Grafana" "icon" "dashboard") }}
+{{- end }}
+{{- $tools = append $tools (dict "url" $repo "label" "Platform repository" "icon" "github") }}
+
+{{- $locations := list (dict
+  "type" "url"
+  "target" (printf "%s/blob/%s/catalog-info.yaml" $repo $ctx.gitops.revision)
+  "rules" (list (dict "allow" (list "Component" "System" "API" "Resource" "Location" "Domain" "Group" "User" "Template")))) }}
+{{- range .Values.settings.catalogLocations }}
+{{- $locations = append $locations (dict "type" "url" "target" .) }}
+{{- end }}
+
+{{- $config := dict
+  "app" (dict
+    "title" (printf "%s portal" $ctx.platform)
+    "baseUrl" $url
+    "extensions" (list
+      (dict "page:catalog" (dict "config" (dict "path" "/")))
+      (dict "home-page-widget:home/toolkit" (dict "config" (dict "tools" $tools)))
+      (dict "home-page-widget:home/world-clock" (dict "config" (dict "clockConfigs" (list (dict "label" "UTC" "timeZone" "UTC")))))
+      (dict "page:home" (dict "config" (dict "defaultConfig" (list
+        (dict "component" "HomePageSearchBar" "column" 0 "row" 0 "width" 12 "height" 2 "deletable" false)
+        (dict "component" "HomePageStarredEntities" "column" 0 "row" 2 "width" 6 "height" 4)
+        (dict "component" "HomePageToolkit" "column" 6 "row" 2 "width" 6 "height" 4)
+        (dict "component" "HomePageRecentlyVisited" "column" 0 "row" 6 "width" 6 "height" 4)
+        (dict "component" "HomePageWorldClock" "column" 6 "row" 6 "width" 6 "height" 3)))))))
+  "organization" (dict "name" $ctx.platform)
+  "backend" (dict "baseUrl" $url "cors" (dict "origin" $url))
+  "integrations" (dict "github" (list (dict
+    "host" "github.com"
+    "apps" (list (dict
+      "appId" "${GITHUB_APP_ID}"
+      "clientId" "${GITHUB_APP_CLIENT_ID}"
+      "clientSecret" "unused"
+      "privateKey" "${GITHUB_APP_PRIVATE_KEY}"
+      "webhookSecret" "unused"
+      "allowedInstallationOwners" (list $ctx.github.owner))))))
+  "catalog" (dict "locations" $locations)
+  "kubernetes" (dict "clusterLocatorMethods" (list (dict
+    "type" "config"
+    "clusters" (list (dict
+      "name" (printf "%s-%s" $ctx.platform $ctx.environment)
+      "url" "https://kubernetes.default.svc"
+      "authProvider" "serviceAccount"
+      "caFile" "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")))))
+}}
+# The portal's platform settings (portal/app-config.production.yaml explains the layering).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-config
+  namespace: {{ $ns }}
+data:
+  app-config.platform.yaml: |
+    {{- toYaml $config | nindent 4 }}
+---
+# IDs only. The portal's Entra app is created by `bluepave up` (discovered portal.appClientId).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-settings
+  namespace: {{ $ns }}
+data:
+  AUTH_MICROSOFT_CLIENT_ID: {{ $ids.appClientId | default "" | quote }}
+  AUTH_MICROSOFT_TENANT_ID: {{ $ctx.tenantId | quote }}
+---
+# Secrets from Key Vault (secrets-external): the portal's Entra client secret and the platform
+# GitHub App (reads the catalog, opens pull requests). `bluepave up` stores them.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: portal-secrets
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: azure-keyvault
+  target:
+    name: portal-secrets
+  data:
+    - { secretKey: AUTH_MICROSOFT_CLIENT_SECRET, remoteRef: { key: portal-entra-client-secret } }
+    - { secretKey: GITHUB_APP_ID, remoteRef: { key: github-app-id } }
+    - { secretKey: GITHUB_APP_CLIENT_ID, remoteRef: { key: github-app-client-id } }
+    - { secretKey: GITHUB_APP_PRIVATE_KEY, remoteRef: { key: github-app-private-key } }
+{{- end }}

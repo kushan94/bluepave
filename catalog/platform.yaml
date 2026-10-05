@@ -1,0 +1,23 @@
+# The platform itself in the catalog.
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: platform
+  title: Platform
+  description: The internal developer platform (bluepave)
+  annotations:
+    backstage.io/techdocs-ref: dir:..
+spec:
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: portal
+  title: Portal
+  description: The developer portal (Backstage)
+spec:
+  type: website
+  lifecycle: production
+  owner: platform-team
+  system: platform

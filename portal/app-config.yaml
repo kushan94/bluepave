@@ -1,0 +1,123 @@
+# The platform portal (Backstage), for local use: `yarn start` in portal/ (see README.md). The
+# hosted portal adds app-config.production.yaml and the platform's settings (modules/portal).
+app:
+  title: Platform portal
+  baseUrl: http://localhost:3000
+  packages: all
+  extensions:
+    # The catalog is the front page.
+    - page:catalog:
+        config:
+          path: /
+    - home-page-widget:home/world-clock:
+        config:
+          clockConfigs:
+            - label: UTC
+              timeZone: UTC
+    - page:home:
+        config:
+          defaultConfig:
+            - component: HomePageSearchBar
+              column: 0
+              row: 0
+              width: 12
+              height: 2
+              deletable: false
+            - component: HomePageStarredEntities
+              column: 0
+              row: 2
+              width: 6
+              height: 4
+            - component: HomePageRecentlyVisited
+              column: 0
+              row: 6
+              width: 6
+              height: 4
+            - component: HomePageWorldClock
+              column: 6
+              row: 6
+              width: 6
+              height: 3
+
+organization:
+  name: Platform
+
+backend:
+  baseUrl: http://localhost:7007
+  listen:
+    port: 7007
+  csp:
+    connect-src: ["'self'", 'http:', 'https:']
+  cors:
+    origin: http://localhost:3000
+    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+    credentials: true
+  # In memory: the catalog is rebuilt from the repository on every start.
+  database:
+    client: better-sqlite3
+    connection: ':memory:'
+  actions:
+    pluginSources:
+      - auth
+      - catalog
+      - scaffolder
+
+integrations:
+  github:
+    # Read from the environment when Backstage starts (`export GITHUB_TOKEN=$(gh auth token)`);
+    # never written to a file. The scaffolder uses it to open pull requests.
+    - host: github.com
+      token: ${GITHUB_TOKEN}
+
+proxy:
+
+techdocs:
+  builder: 'local'
+  generator:
+    # No Docker on this machine: mkdocs + mkdocs-techdocs-core must be on PATH (see README.md).
+    runIn: 'local'
+  publisher:
+    type: 'local'
+
+auth:
+  # Local, single user: guest sign-in. A shared portal would use Microsoft Entra ID.
+  providers:
+    guest: {}
+  clientIdMetadataDocuments:
+    enabled: false
+
+scaffolder:
+
+catalog:
+  import:
+    entityFilename: catalog-info.yaml
+    pullRequestBranchName: backstage-integration
+  rules:
+    - allow: [Component, System, API, Resource, Location, Domain]
+  locations:
+    # The repository's own catalog: platform, apps, teams and templates. Paths are relative to
+    # packages/backend, where the backend runs.
+    - type: file
+      target: ../../../catalog-info.yaml
+      rules:
+        - allow: [Component, System, API, Resource, Location, Domain, Group, User, Template]
+
+kubernetes:
+  # Run `kubectl proxy` (port 8001) next to Backstage. The proxy signs each request with your own
+  # kubeconfig (Entra ID through kubelogin), so Backstage holds no cluster credential and sees only
+  # what you may see.
+  serviceLocatorMethod:
+    type: multiTenant
+  clusterLocatorMethods:
+    - type: config
+      clusters:
+        - name: local
+          url: http://127.0.0.1:8001
+          authProvider: localKubectlProxy
+
+permission:
+  enabled: true
+
+mcpActions:
+  name: 'Platform portal'
+  description: 'The platform catalog, its apps, and templates for new services'

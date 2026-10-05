@@ -1,0 +1,112 @@
+{{- if eq (include "portal.here" .) "true" }}
+{{- $ctx := .Values.bluepave }}
+{{- $ns := include "portal.namespace" . }}
+{{- $apiServer := (index $ctx.discovered "network" | default dict).apiServerSubnetPrefix | default "" }}
+# Kubernetes tab: read-only access to workloads, never to Secrets or ConfigMaps (the portal's
+# kubernetes.objectTypes asks for exactly these kinds). Apps can't create cluster-scoped RBAC, so
+# the platform grants it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: portal-reader
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, limitranges, resourcequotas]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [rollouts]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: portal-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: portal-reader
+subjects:
+  - kind: ServiceAccount
+    name: portal
+    namespace: {{ $ns }}
+---
+# https://portal.<env>.<domain>, on the Gateway's wildcard listener like any app.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: portal
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+    - name: {{ $ctx.gateway.name }}
+      namespace: {{ $ctx.gateway.namespace }}
+      sectionName: https
+  hostnames:
+    - {{ printf "portal.%s" $ctx.domain | quote }}
+  rules:
+    - filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+      backendRefs:
+        - name: portal
+          port: 80
+{{- if $apiServer }}
+---
+# Ingress only from the Gateway. Egress: DNS, the API server (Kubernetes tab), and HTTPS to public
+# addresses (GitHub, Entra ID).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portal
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - { port: 7007, protocol: TCP }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: {{ $apiServer }}
+      ports:
+        - { port: 443, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - { port: 443, protocol: TCP }
+{{- end }}
+{{- end }}

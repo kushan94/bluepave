@@ -1,0 +1,12 @@
+# Entry point of the platform's catalog, read by the portal (modules/portal). Add your teams and
+# people to catalog/org.yaml, and app repositories' catalog files as Locations here or in the portal
+# module's catalogLocations setting.
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: platform
+  description: Everything in the platform repository
+spec:
+  targets:
+    - ./catalog/org.yaml
+    - ./catalog/platform.yaml

@@ -1,0 +1,60 @@
+name: portal
+
+# The platform portal (Backstage, portal/): installs and typechecks it, then builds it with the
+# golden path like any app: a scanned image portal-web. On main, where the platform's repository
+# variables exist (BLUEPAVE_*, set by `bluepave up`), it's also pushed and signed; Kargo deploys it
+# (apps/portal.yaml). In the bluepave repository itself nothing is published.
+on:
+  pull_request:
+    paths: [portal/**, .github/workflows/portal.yml, .github/workflows/build-app.yml]
+  push:
+    branches: [main]
+    paths:
+      - portal/**
+      - .github/workflows/portal.yml
+      - .github/workflows/build-app.yml
+      # Kargo's digest commits and docs must not rebuild (a rebuild would be promoted again).
+      - '!portal/deploy/values-*.yaml'
+      - '!portal/**/*.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Install and typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: portal
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install (lockfile must be up to date)
+        run: |
+          corepack enable
+          yarn install --immutable
+      - name: Typecheck
+        run: yarn tsc
+
+  build:
+    name: portal
+    needs: check
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: portal
+      app-dir: portal
+      publish: ${{ github.event_name == 'push' && vars.BLUEPAVE_REGISTRY != '' }}
+      registry: ${{ vars.BLUEPAVE_REGISTRY }}
+      azure-tenant-id: ${{ vars.BLUEPAVE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.BLUEPAVE_SUBSCRIPTION_ID }}
+      azure-client-id: ${{ vars.BLUEPAVE_CLIENT_ID }}

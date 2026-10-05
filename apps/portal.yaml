@@ -1,0 +1,17 @@
+# The platform's own portal (Backstage, portal/ in this repository), onboarded like any app: built
+# and signed by the golden path (.github/workflows/portal.yml), delivered by the generated Kargo
+# pipeline. Its settings, route, RBAC and secrets come from the portal module (modules/portal).
+# Disable the module and delete this file to run without a portal.
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata:
+  name: portal
+  description: The platform portal (Backstage) - catalog, docs, templates
+spec:
+  stages:
+    - name: dev
+  source:
+    repoURL: https://github.com/acme/acme-platform   # this repository (bluepave.yaml spec.github)
+    path: portal/deploy/chart
+  delivery:
+    images: [web]

@@ -395,4 +395,6 @@ module privateDnsZones 'br/public:avm/res/network/private-dns-zone:0.8.1' = [
 output spokeVnetId string = spokeVnet.outputs.resourceId
 output hubVnetId string = hubVnet.outputs.resourceId
 output egress string = profile.network.egress
+@description('The API server subnet (API Server VNet Integration): network policies allow pods to reach the API server there.')
+output apiServerSubnetPrefix string = spokeSubnetPrefixes.aksApiServer
 output firewallPrivateIp string = useFirewall ? firewall!.outputs.privateIp : ''

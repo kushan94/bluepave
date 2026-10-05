@@ -1,0 +1,14 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: portal
+  description: The developer portal (Backstage) - its settings, route, network policy, read-only RBAC and secrets
+spec:
+  version: 0.1.0
+  requires: [aks, network, gitops-argocd, secrets-external, edge-gateway]
+  config:
+    schema: config.schema.json
+  layers:
+    gitops: gitops
+    docs: docs
+  tests: tests

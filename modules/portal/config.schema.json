@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "portal module settings (bluepave.yaml spec.modules.portal.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "environment": {
+      "description": "The cluster the portal runs on (its app file, apps/portal.yaml, has one stage there). Default: dev.",
+      "enum": ["dev", "prod"]
+    },
+    "catalogLocations": {
+      "description": "Extra catalog files to read, e.g. an app repository's catalog-info.yaml (https://github.com/<owner>/<repo>/blob/main/catalog-info.yaml). The platform repository's catalog-info.yaml is always read.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^https://github\\.com/" },
+      "uniqueItems": true
+    }
+  }
+}

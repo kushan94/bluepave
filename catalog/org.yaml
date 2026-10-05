@@ -1,0 +1,24 @@
+# Teams and people. Owners in the catalog point at these groups. The portal signs users in with
+# Microsoft Entra ID and matches them to a User here by the graph.microsoft.com/user-id annotation
+# (their Entra object ID), so everyone who signs in needs an entry.
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-team
+  description: Builds and runs the platform (Entra ID group bluepave.yaml spec.admins.group)
+spec:
+  type: team
+  profile:
+    displayName: Platform team
+  children: []
+# ---
+# apiVersion: backstage.io/v1alpha1
+# kind: User
+# metadata:
+#   name: jdoe
+#   annotations:
+#     graph.microsoft.com/user-id: <Entra object ID: az ad signed-in-user show --query id -o tsv>
+# spec:
+#   profile:
+#     displayName: Jane Doe
+#   memberOf: [platform-team]

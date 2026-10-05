@@ -1,0 +1,5 @@
+apiVersion: v2
+name: portal
+description: The platform portal (Backstage), deployed as an app (apps/portal.yaml)
+type: application
+version: 0.1.0

@@ -1,0 +1,13 @@
+# Written by Kargo when it promotes Freight (the generated pipeline, apps/portal.yaml): the image's
+# repository in the platform registry, its tag (the commit) and digest. No digest yet: no
+# Deployment. Everything platform-specific (URLs, Entra app, catalog, route, network policy, RBAC,
+# secrets) comes from the portal module (modules/portal), not from these values.
+images:
+  web:
+    repository: ""
+    tag: ""
+    digest: ""
+
+resources:
+  requests: { cpu: 100m, memory: 512Mi }
+  limits: { memory: 1Gi }

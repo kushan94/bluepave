@@ -16,8 +16,10 @@ creates, on each cluster that runs one of its stages:
     every image comes from the same commit.
   - The first stage gets each new Freight automatically; later stages are promoted by hand, by
     the platform admins group.
-  - A promotion commits the image digests to the stage's values file in the app's repository (as
-    the platform's GitHub App), then syncs the stage.
+  - A promotion commits `images.<image>.repository`, `.tag` and `.digest` to the stage's values
+    file in the app's repository (as the platform's GitHub App), then syncs the stage. App charts
+    reference `{{ .Values.images.<image>.repository }}@{{ .Values.images.<image>.digest }}` and
+    never name the registry.
 
 ```yaml
 # apps/greeter.yaml

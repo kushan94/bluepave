@@ -100,6 +100,9 @@ spec:
             path: ./repo/{{ $o }} vars.valuesFile }}
             updates:
               {{- range $images }}
+              # The full repository too, so app charts never name the registry.
+              - key: images.{{ . }}.repository
+                value: {{ $registry }}/{{ $name }}-{{ . }}
               - key: images.{{ . }}.digest
                 value: {{ $o }} imageFrom("{{ $registry }}/{{ $name }}-{{ . }}").Digest }}
               - key: images.{{ . }}.tag

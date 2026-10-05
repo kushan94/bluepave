@@ -69,6 +69,7 @@ resolved:
         - edge-gateway
         - observability
         - self-service
+        - portal
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -148,6 +149,9 @@ resolved:
       sources:
         - url: https://kyverno.github.io/kyverno
           type: helm
+    - name: portal
+      version: 0.1.0
+      gitops: modules/portal/gitops
     - name: rollouts
       version: 0.1.0
       gitops: modules/rollouts/gitops

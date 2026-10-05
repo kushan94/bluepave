@@ -7,7 +7,7 @@ spec:
   version: 0.1.0
   infraScope: environment
   requires: [monitoring]
-  outputs: [spokeVnetId, hubVnetId, egress, firewallPrivateIp]
+  outputs: [spokeVnetId, hubVnetId, egress, firewallPrivateIp, apiServerSubnetPrefix]
   config:
     schema: config.schema.json
   layers:
