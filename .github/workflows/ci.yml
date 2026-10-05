@@ -129,3 +129,12 @@ jobs:
           done
           cp "$RUNNER_TEMP/bluepave.orig.yaml" bluepave.yaml
           exit $status
+
+  # The golden path itself, on a fixture app: source checks, image build and scan (no publish, so
+  # no Azure). A change to build-app.yml is tested here before any app uses it.
+  golden-path:
+    name: Golden path (build-app.yml)
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: hello
+      app-dir: hack/fixtures/hello
