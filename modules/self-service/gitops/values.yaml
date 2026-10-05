@@ -5,7 +5,7 @@ bluepave:
   region: westeurope
   tenantId: ""
   subscriptionId: ""
-  profile: { network: { allowPublicNetworkAccess: true } }
+  profile: { network: { allowPublicNetworkAccess: true }, data: { cache: inCluster } }
   modules: []
   discovered: {}
   scheduling: { tolerations: [], highAvailability: true }

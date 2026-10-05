@@ -1,6 +1,8 @@
 # Values the tests render the module chart with (made-up registry and repository).
 bluepave:
   github: { owner: acme, platformRepo: acme-platform }
+  # Declared by enabled modules (module.yaml spec.appImages), e.g. AppCache's Valkey.
+  appImages: [docker.io/valkey/valkey:9.1.2@sha256:1111111111111111111111111111111111111111111111111111111111111111]
   discovered:
     registry: { containerRegistryLoginServer: cracme.azurecr.io }
 settings:

@@ -57,6 +57,14 @@ platformHosts:
   - { name: {{ .name | quote }}, namespace: {{ .namespace | quote }}, module: {{ $module | quote }} }
   {{- end }}
   {{- end }}
+# Images enabled modules run in app namespaces (module.yaml spec.appImages), which the admission
+# policy allows there besides each app's own.
+appImages:
+  {{- range .Values.resolved.modules }}
+  {{- range .appImages }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
 # This environment's discovered IDs (.bluepave/discovered.yaml environments.<env>).
 discovered:
   {{- toYaml (($discovered.environments | default dict) | dig $env dict) | nindent 2 }}

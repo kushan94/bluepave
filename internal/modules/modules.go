@@ -29,6 +29,7 @@ type Module struct {
 		Outputs    []string          `yaml:"outputs"`
 		Sources    []Source          `yaml:"sources"`
 		Hostnames  []Hostname        `yaml:"hostnames"`
+		AppImages  []string          `yaml:"appImages"`
 		Layers     map[string]string `yaml:"layers"`
 		Tests      string            `yaml:"tests"`
 		Config     *struct {

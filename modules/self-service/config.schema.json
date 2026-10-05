@@ -5,12 +5,16 @@
   "additionalProperties": false,
   "properties": {
     "apis": {
-      "description": "Which platform APIs to offer (ADR-0003). AppCache and AppDatabase come in later module versions.",
+      "description": "Which platform APIs to offer (ADR-0003). AppDatabase comes in a later module version.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "appStorage": {
           "description": "Blob storage with a keyless workload identity. Default: on where the profile allows public network access; profiles with private endpoints only (production) need private-endpoint support, which isn't implemented yet.",
+          "type": "boolean"
+        },
+        "appCache": {
+          "description": "A cache (Valkey) in the app's namespace. Default: on where the profile's data.cache is inCluster; Azure Managed Redis (azureManagedRedis) needs private-endpoint support, which isn't implemented yet.",
           "type": "boolean"
         }
       }
