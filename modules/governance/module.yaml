@@ -6,6 +6,7 @@ metadata:
 spec:
   version: 0.1.0
   infraScope: global
+  outputs: [budgetStartDate]
   layers:
     infra: infra/main.bicep
     docs: docs

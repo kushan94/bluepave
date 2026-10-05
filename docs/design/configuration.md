@@ -120,6 +120,11 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 2b. **App onboarding:** `apps/<name>.yaml` (`api/v1alpha1/app.schema.json`), the
     `platform/charts/app-onboarding` chart and the root chart's `apps` ApplicationSet (done).
 3. **CLI:** preflight, up, status, down, folding in the seven Skyforge bootstrap scripts.
+   - `plan` and `up -step infra`: deployment stacks per module and environment, outputs into
+     `.bluepave/discovered.yaml`, recorded outputs passed back as parameters (done).
+   - Identities and secrets: admins group, CI identity and GitHub OIDC, Entra apps, GitHub App,
+     Key Vault secrets, repository variables.
+   - GitOps bootstrap, `status`, `down`.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.
 6. **End-to-end test:** a fresh subscription → `up` → examples → `down`, nightly.

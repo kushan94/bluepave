@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+
+	"github.com/kushan94/bluepave/internal/discovered"
+	cmdrun "github.com/kushan94/bluepave/internal/run"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,5 +116,58 @@ func TestHostnameClaimedTwice(t *testing.T) {
 	}
 	if want := `both claim the platform hostname "argocd"`; !strings.Contains(errOut.String(), want) {
 		t.Errorf("stderr = %q, want it to contain %q", errOut.String(), want)
+	}
+}
+
+func TestPlan(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if code := run([]string{"plan", "-f", "../../bluepave.yaml", "-root", "../.."}, &out, &errOut); code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut.String())
+	}
+	for _, want := range []string{"1. dns", "bp-acme-dns", "dev/aks", "bp-acme-dev-aks"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("plan lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+// up against a recording runner: the account is recorded, every stack is created in plan order,
+// and the outputs land in discovered.yaml.
+func TestUpInfra(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules", "apps"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := &cmdrun.Recorder{Responses: map[string]string{
+		"az account show":     `{"id": "sub-1", "tenantId": "tenant-1"}`,
+		"az bicep build":      `{"parameters": {"environmentName": {}}}`,
+		"az stack sub create": `{"outputs": {"marker": {"type": "String", "value": "ok"}}}`,
+	}}
+	old := runner
+	runner = rec
+	defer func() { runner = old }()
+
+	var out, errOut bytes.Buffer
+	code := run([]string{"up", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut.String())
+	}
+	var creates []string
+	for _, c := range rec.Calls {
+		if strings.HasPrefix(c.String(), "az stack sub create") {
+			creates = append(creates, c.Args[4]) // --name <stack>
+		}
+	}
+	if len(creates) == 0 || creates[0] != "bp-acme-dns" || creates[len(creates)-1] != "bp-acme-dev-self-service" {
+		t.Errorf("stacks created: %v", creates)
+	}
+	ids, err := discovered.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids.Get("azure", "subscriptionId") != "sub-1" || ids.Get("environments", "dev", "aks", "marker") != "ok" {
+		t.Errorf("discovered = %v", ids)
 	}
 }

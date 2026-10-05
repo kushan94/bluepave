@@ -130,6 +130,10 @@ jobs:
           cp "$RUNNER_TEMP/bluepave.orig.yaml" bluepave.yaml
           exit $status
 
+      # `bluepave up` records each template's outputs; module.yaml must declare exactly those.
+      - name: Declared outputs match the templates
+        run: hack/check-outputs.sh
+
   # The golden path itself, on a fixture app: source checks, image build and scan (no publish, so
   # no Azure). A change to build-app.yml is tested here before any app uses it.
   golden-path:
