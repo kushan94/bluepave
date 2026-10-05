@@ -48,8 +48,11 @@ modules:
 # This environment's discovered IDs (.bluepave/discovered.yaml environments.<env>).
 discovered:
   {{- toYaml (($discovered.environments | default dict) | dig $env dict) | nindent 2 }}
-# Platform pods (controllers, the portal) may run on Spot nodes when the profile has them.
 scheduling:
+  # Run more than one replica of platform controllers: off on a cluster tier with no uptime SLA
+  # (trial), where every vCPU counts.
+  highAvailability: {{ ne ((($profile.cluster | default dict).tier) | default "Free") "Free" }}
+  # Platform pods (controllers, the portal) may run on Spot nodes when the profile has them.
   tolerations:
     {{- if $hasSpot }}
     - key: kubernetes.azure.com/scalesetpriority

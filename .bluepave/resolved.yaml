@@ -63,6 +63,7 @@ resolved:
         - secrets-external
         - certificates
         - delivery-kargo
+        - rollouts
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -112,3 +113,9 @@ resolved:
           type: oci
     - name: governance
       version: 0.1.0
+    - name: rollouts
+      version: 0.1.0
+      gitops: modules/rollouts/gitops
+      sources:
+        - url: https://argoproj.github.io/argo-helm
+          type: helm

@@ -1,0 +1,38 @@
+{{- $s := .Values.bluepave.scheduling }}
+{{- /* Two replicas (leader election) where the profile is highly available; one on trial. */ -}}
+{{- $env := dict "controller" (dict
+  "replicas" (ternary 2 1 $s.highAvailability)
+  "tolerations" $s.tolerations)
+}}
+{{- $values := mergeOverwrite (.Files.Get "files/argo-rollouts-values.yaml" | fromYaml) $env }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: argo-rollouts
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

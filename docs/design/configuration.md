@@ -125,8 +125,8 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 ### Modules to port (target set)
 
-Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`, `secrets-external`, `certificates`, `delivery-kargo`. To do:
-`rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `observability`,
+Done: `governance`, `monitoring`, `dns`, `network`, `registry`, `keyvault`, `aks`, `data-postgres`, `gitops-argocd`, `secrets-external`, `certificates`, `delivery-kargo`, `rollouts`. To do:
+`policy-kyverno`, `runtime-falco`, `edge-gateway`, `observability`,
 `self-service` (`AppStorage`, `AppCache`, `AppDatabase`; [ADR-0003](../adr/0003-self-service-apis.md)), `portal`. Each is added to the profiles that should enable it by default
 when it lands.
 

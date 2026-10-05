@@ -17,8 +17,12 @@ if [[ -z ${BLUEPAVE:-} ]]; then
   BLUEPAVE="$OUT/bluepave"
 fi
 
+# Schemas are downloaded once and reused across runs: fewer network calls, fewer flaky failures.
+SCHEMA_CACHE=${SCHEMA_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/bluepave/kubeconform}
+mkdir -p "$SCHEMA_CACHE"
+
 kubeconform_() {
-  kubeconform -strict -summary -output text \
+  kubeconform -strict -summary -output text -cache "$SCHEMA_CACHE" \
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
     "$@"
