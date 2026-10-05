@@ -135,6 +135,11 @@ jobs:
   golden-path:
     name: Golden path (build-app.yml)
     uses: ./.github/workflows/build-app.yml
+    # What an app's caller grants. A called workflow's jobs can't have more than this, and its
+    # publish job declares id-token: write; it doesn't run here (publish is off).
+    permissions:
+      contents: read
+      id-token: write
     with:
       app: hello
       app-dir: hack/fixtures/hello
