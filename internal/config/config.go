@@ -26,7 +26,13 @@ type Platform struct {
 			Region string `yaml:"region"`
 		} `yaml:"azure"`
 		Environments []string `yaml:"environments"`
-		GitHub       struct {
+		DNS          struct {
+			Domain string `yaml:"domain"`
+		} `yaml:"dns"`
+		Admins struct {
+			Group string `yaml:"group"`
+		} `yaml:"admins"`
+		GitHub struct {
 			Owner        string `yaml:"owner"`
 			PlatformRepo string `yaml:"platformRepo"`
 		} `yaml:"github"`
