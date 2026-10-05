@@ -28,4 +28,4 @@ spec:
     cache: azureManagedRedis
   ingress: agc
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks]
