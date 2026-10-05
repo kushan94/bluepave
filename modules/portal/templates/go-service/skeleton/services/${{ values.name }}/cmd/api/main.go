@@ -42,9 +42,9 @@ func handler() http.Handler {
 func metrics() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-		fmt.Fprintf(w, "# HELP ${{ values.name | replace("-", "_") }}_http_requests_total HTTP requests served.\n")
-		fmt.Fprintf(w, "# TYPE ${{ values.name | replace("-", "_") }}_http_requests_total counter\n")
-		fmt.Fprintf(w, "${{ values.name | replace("-", "_") }}_http_requests_total %d\n", requests.Load())
+		fmt.Fprintf(w, "# HELP ${{ values.name | replace('-', '_') }}_http_requests_total HTTP requests served.\n")
+		fmt.Fprintf(w, "# TYPE ${{ values.name | replace('-', '_') }}_http_requests_total counter\n")
+		fmt.Fprintf(w, "${{ values.name | replace('-', '_') }}_http_requests_total %d\n", requests.Load())
 	})
 }
 
