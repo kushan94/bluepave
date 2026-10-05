@@ -13,7 +13,7 @@ metadata:
 spec:
   project: {{ $name }}
   source:
-    repoURL: {{ $src.repoURL | quote }}
+    repoURL: {{ include "onboarding.repoURL" $ | quote }}
     targetRevision: {{ $src.targetRevision | default "main" | quote }}
     path: {{ $src.path | quote }}
     helm:

@@ -71,6 +71,12 @@ for profile in profiles/*.yaml; do
       helm template onboarding platform/charts/app-onboarding --namespace argocd \
         -f "$app" -f "$dir/apps.values.yaml" > "$dir/onboarding-$(basename "$app")"
       kubeconform_ "$dir/onboarding-$(basename "$app")" || status=1
+      # Argo CD reads the app from its source.repoURL, or the platform repository without one.
+      want=$(yq -r '.spec.source.repoURL // ""' "$app")
+      [[ -n $want ]] || want="https://github.com/$(yq -r '.spec.github.owner' bluepave.yaml)/$(yq -r '.spec.github.platformRepo' bluepave.yaml)"
+      for got in $(yq -r 'select(.kind == "Application") | .spec.source.repoURL' "$dir/onboarding-$(basename "$app")" | grep -v '^---$'); do
+        [[ $got == "$want" ]] || { echo "::error file=$app::Application reads $got, want $want"; status=1; }
+      done
     done
 
     # Each module Application: render its chart with the values the root gave it.

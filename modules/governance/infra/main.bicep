@@ -2,13 +2,24 @@
 // pipeline doesn't have, so `bluepave up` deploys this module as the installer (an Owner).
 targetScope = 'subscription'
 
-import { budgetContactEmails, budgetFor, environmentNames, location, platformName, prefix } from '../../../lib/bicep/platform.bicep'
+import {
+  budgetContactEmails
+  budgetFor
+  environmentNames
+  location
+  moduleSettings
+  platformName
+  prefix
+} from '../../../lib/bicep/platform.bicep'
 
 @description('First day of the month the budgets start (yyyy-MM-01). Budgets can\'t start in the past or change their start, so the first deployment picks this month and `bluepave up` passes the recorded output back from then on.')
 param budgetStartDate string = '${utcNow('yyyy-MM')}-01'
 
 @description('Tags that resources inherit from their resource group when missing (keeps cost reports by env complete).')
 param inheritedTags string[] = ['env', 'platform']
+
+// The platform's region, and any others the subscription also uses (settings.additionalLocations).
+var allowedLocationList = union([location], moduleSettings('governance').?additionalLocations ?? [])
 
 // Shown in the portal as "Assigned by", so anyone can trace an assignment back to this module.
 var assignedBy = 'bluepave ${platformName}: modules/governance'
@@ -31,10 +42,10 @@ resource allowedLocations 'Microsoft.Authorization/policyAssignments@2025-03-01'
   name: '${prefix}-allowed-locations'
   properties: {
     displayName: '${platformName}: allowed locations for resources'
-    description: 'Deny resources outside the platform\'s region. Global resources (DNS zones) are exempt by the definition.'
+    description: 'Deny resources outside the platform\'s region (and settings.additionalLocations). Global resources (DNS zones) are exempt by the definition.'
     metadata: { assignedBy: assignedBy }
     policyDefinitionId: policyIds.allowedLocations
-    parameters: { listOfAllowedLocations: { value: [location] } }
+    parameters: { listOfAllowedLocations: { value: allowedLocationList } }
   }
 }
 
@@ -42,10 +53,10 @@ resource allowedRgLocations 'Microsoft.Authorization/policyAssignments@2025-03-0
   name: '${prefix}-allowed-rg-locations'
   properties: {
     displayName: '${platformName}: allowed locations for resource groups'
-    description: 'Deny resource groups outside the platform\'s region.'
+    description: 'Deny resource groups outside the platform\'s region (and settings.additionalLocations).'
     metadata: { assignedBy: assignedBy }
     policyDefinitionId: policyIds.allowedRgLocations
-    parameters: { listOfAllowedLocations: { value: [location] } }
+    parameters: { listOfAllowedLocations: { value: allowedLocationList } }
   }
 }
 

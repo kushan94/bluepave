@@ -3,6 +3,7 @@
 # the module context under `bluepave` (ADR-0002). These defaults only make `helm lint` work.
 bluepave:
   environment: dev
+  github: { owner: example, platformRepo: example-platform }
   admins: { groupObjectId: "" }
   modules: []
   discovered: {}
@@ -10,4 +11,5 @@ metadata:
   name: example
 spec:
   stages: [{ name: dev }]
-  source: { repoURL: https://github.com/example/example, path: deploy/chart }
+  # No repoURL default: an app file without one means the platform repository.
+  source: { path: deploy/chart }

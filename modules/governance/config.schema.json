@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "governance module settings (bluepave.yaml spec.modules.governance.settings)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "additionalLocations": {
+      "description": "Regions allowed besides spec.azure.region, for a subscription the platform shares (e.g. with another platform or workloads in other regions). The location policies deny everything else in the whole subscription. Default: none.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+[a-z0-9]*$"
+      },
+      "uniqueItems": true
+    }
+  }
+}

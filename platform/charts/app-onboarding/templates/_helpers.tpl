@@ -19,3 +19,8 @@
 
 {{/* Kargo expressions are written ${{ ... }}; Helm would read the inner braces, so emit them. */}}
 {{- define "kargo.open" -}}${{ "{{" }}{{- end -}}
+
+{{/* The app's repository: source.repoURL, else the platform repository. */}}
+{{- define "onboarding.repoURL" -}}
+{{- .Values.spec.source.repoURL | default (printf "https://github.com/%s/%s" .Values.bluepave.github.owner .Values.bluepave.github.platformRepo) -}}
+{{- end -}}

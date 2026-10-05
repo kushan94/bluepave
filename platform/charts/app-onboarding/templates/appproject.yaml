@@ -11,7 +11,7 @@ metadata:
 spec:
   description: {{ .Values.metadata.description | default $name | quote }}
   sourceRepos:
-    - {{ .Values.spec.source.repoURL | quote }}
+    - {{ include "onboarding.repoURL" . | quote }}
   destinations:
     {{- range $stages }}
     - server: https://kubernetes.default.svc

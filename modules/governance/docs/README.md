@@ -13,6 +13,10 @@ Owner. The pipeline's identity can't change policy, by design.
 **Settings:**
 - `spec.budget.monthly.<env>`: defaults to the profile's budget.
 - `spec.budget.contactEmails`.
+- `spec.modules.governance.settings.additionalLocations`: regions allowed besides
+  `spec.azure.region`. The location policies cover the **whole subscription**, so set this when
+  the subscription also runs something elsewhere (another platform, other workloads), or turn the
+  module off there (`governance: {enabled: false}`) and keep the guardrails you already have.
 
 **Parameter:** `budgetStartDate` (`yyyy-MM-01`). A budget can't start in the past, so
 `bluepave up` records the first value and reuses it.
