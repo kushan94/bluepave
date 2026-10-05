@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/kushan94/bluepave/internal/deploy"
 	"github.com/kushan94/bluepave/internal/discovered"
 	"github.com/kushan94/bluepave/internal/githubapp"
+	"github.com/kushan94/bluepave/internal/render"
 	cmdrun "github.com/kushan94/bluepave/internal/run"
 )
 
@@ -85,7 +87,7 @@ func planCmd(args []string, stdout, stderr io.Writer) int {
 }
 
 // steps of `bluepave up`, in order.
-var steps = []string{"accounts", "infra", "identities", "github-app"}
+var steps = []string{"accounts", "infra", "identities", "github-app", "gitops"}
 
 // appFlow is how the github-app step reaches the user and GitHub; tests replace it.
 var appFlow = bootstrap.AppFlow{
@@ -145,6 +147,14 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
+	// The GitOps root reads the resolved module set: keep it current with bluepave.yaml.
+	if r, err := render.Build(pl.root, pl.config, pl.ordered); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	} else if err := r.Write(filepath.Join(pl.root, render.Path), false); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
 	stacks := selectStacks(deploy.Plan(pl.config, pl.ordered), *env, *module)
 	fmt.Fprintf(stdout, "Platform %q on subscription %v (%s). Steps: %s.\n", pl.config.Metadata.Name,
 		ids.Get("azure", "subscriptionId"), pl.config.Spec.Azure.Region, strings.Join(run, ", "))
@@ -175,6 +185,8 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 			err = boot.Identities(ctx)
 		case "github-app":
 			err = boot.GitHubApp(ctx, appFlow)
+		case "gitops":
+			err = boot.GitOps(ctx, *root)
 		}
 		// Save after every step (infra also saves after every stack): a failure keeps the progress.
 		if saveErr := ids.Save(*root); saveErr != nil && err == nil {
@@ -186,7 +198,11 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	}
-	fmt.Fprintf(stdout, "\nDone. Commit %s: GitOps reads the new IDs from Git.\n", discovered.Path)
+	if slices.Contains(run, "gitops") {
+		fmt.Fprintln(stdout, "\nDone. Argo CD now syncs the platform from Git: watch it with `bluepave status`.")
+	} else {
+		fmt.Fprintf(stdout, "\nDone. Commit and push bluepave.yaml and .bluepave/ (GitOps reads them from Git), then run `bluepave up -step gitops`.\n")
+	}
 	if ns, ok := ids.Get("global", "dns", "nameServers").([]any); ok && len(ns) > 0 {
 		fmt.Fprintf(stdout, "Delegate %s to these name servers at your registrar: %v\n", pl.config.Spec.DNS.Domain, ns)
 	}

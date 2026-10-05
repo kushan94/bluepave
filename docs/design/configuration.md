@@ -127,7 +127,9 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
      repository variables (done).
    - `up -step github-app`: the platform GitHub App (manifest flow), its installation, and its
      credentials in every environment's Key Vault (done).
-   - GitOps bootstrap, `status`, `down`.
+   - `up -step gitops`: checks the configuration is pushed, installs Argo CD with the module's
+     rendered values, a bootstrap GitHub App repo credential (stdin), and the root Application (done).
+   - `status`, `down`.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.
 6. **End-to-end test:** a fresh subscription → `up` → examples → `down`, nightly.

@@ -15,6 +15,9 @@ import (
 // Runner runs one command and returns its standard output.
 type Runner interface {
 	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+	// RunIn is Run with standard input: how secrets reach a tool (kubectl apply -f -), never as
+	// arguments.
+	RunIn(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error)
 }
 
 // Exec runs commands for real. Their standard error goes to Log (progress, warnings), and is
@@ -25,7 +28,15 @@ type Exec struct {
 
 // Run implements Runner.
 func (e Exec) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return e.RunIn(ctx, nil, name, args...)
+}
+
+// RunIn implements Runner.
+func (e Exec) RunIn(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -40,8 +51,9 @@ func (e Exec) Run(ctx context.Context, name string, args ...string) ([]byte, err
 
 // Call is one recorded command.
 type Call struct {
-	Name string
-	Args []string
+	Name  string
+	Args  []string
+	Stdin []byte
 }
 
 // String renders the call as a shell-like line, for tests and dry runs.
@@ -57,8 +69,13 @@ type Recorder struct {
 }
 
 // Run implements Runner.
-func (r *Recorder) Run(_ context.Context, name string, args ...string) ([]byte, error) {
-	c := Call{Name: name, Args: args}
+func (r *Recorder) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return r.RunIn(ctx, nil, name, args...)
+}
+
+// RunIn implements Runner.
+func (r *Recorder) RunIn(_ context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
+	c := Call{Name: name, Args: args, Stdin: stdin}
 	r.Calls = append(r.Calls, c)
 	line := c.String()
 	longest := ""
