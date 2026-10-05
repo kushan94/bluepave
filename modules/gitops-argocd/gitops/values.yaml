@@ -1,0 +1,19 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  domain: dev.example.com
+  gitops: { repoURL: https://github.com/example/example.git, revision: main }
+  tenantId: ""
+  admins: { group: example-admins, groupObjectId: "" }
+  profile: { name: trial }
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [] }
+settings: {}
+
+# The upstream chart. Bumped by module releases, after the end-to-end test.
+upstream:
+  repoURL: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: 10.9.6

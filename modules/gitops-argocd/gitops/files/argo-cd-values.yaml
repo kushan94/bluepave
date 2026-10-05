@@ -1,0 +1,68 @@
+# Base values for the argo-cd chart. templates/argo-cd.yaml merges the environment's values on top
+# (domain, scheduling, Entra ID sign-in), then settings.values.
+
+configs:
+  cm:
+    # Sign-in is Entra ID only; there is no local admin password to leak or rotate.
+    # Break-glass: `argocd --core` uses your kubeconfig (which is Entra-authenticated too).
+    admin.enabled: false
+    exec.enabled: false
+    statusbadge.enabled: false
+    application.resourceTrackingMethod: annotation
+    # AKS's Admissions Enforcer adds these namespaceSelector rules to every admission webhook so
+    # third-party webhooks can't intercept kube-system. They aren't in any chart, so without this
+    # Argo CD would report every webhook as OutOfSync forever.
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+      jqPathExpressions:
+        - '.webhooks[]?.namespaceSelector.matchExpressions[]? | select(.key == "control-plane" or .key == "kubernetes.azure.com/managedby")'
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+      jqPathExpressions:
+        - '.webhooks[]?.namespaceSelector.matchExpressions[]? | select(.key == "control-plane" or .key == "kubernetes.azure.com/managedby")'
+    # The OIDC block needs the Entra app's client ID, so templates/argo-cd.yaml adds it.
+
+  params:
+    # Reconcile every 3 minutes (default) but react to Git within seconds when a webhook is set up.
+    timeout.reconciliation: 180s
+
+  rbac:
+    # Nobody gets access unless a group below grants it.
+    policy.default: ''
+    scopes: '[groups]'
+
+dex:
+  # Argo CD talks to Entra ID directly over OIDC; Dex is not needed.
+  enabled: false
+
+notifications:
+  enabled: false
+
+server:
+  # The argocd-server pod proves who it is to Entra ID with its service account token
+  # (Workload Identity), instead of a client secret.
+  podLabels:
+    azure.workload.identity/use: "true"
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+
+controller:
+  # The controller caches every watched resource; with Kyverno's CRDs and ~18 apps the startup
+  # resync passed 768Mi and it was OOMKilled in a loop (in the reference instance).
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 1536Mi }
+
+repoServer:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+applicationSet:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+redis:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 128Mi }

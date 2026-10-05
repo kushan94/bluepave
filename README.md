@@ -42,8 +42,9 @@ promoted, running app on AKS.**
 ## Getting started (in progress)
 
 ```bash
-go run ./cmd/bluepave validate -f bluepave.yaml   # check a configuration
-go run ./cmd/bluepave modules                             # list available modules
+go run ./cmd/bluepave validate -f bluepave.yaml  # check a configuration and module settings
+go run ./cmd/bluepave modules                    # list available modules
+go run ./cmd/bluepave render                     # resolve modules for GitOps (.bluepave/resolved.yaml)
 ```
 
 `bluepave up` and the modules arrive in the next steps

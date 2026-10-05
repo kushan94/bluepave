@@ -1,0 +1,80 @@
+{{- /*
+Argo CD manages itself: this Application has the release name and namespace that `bluepave up`
+installs Argo CD with, so Argo CD adopts that install instead of fighting it.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $clientId := (($ctx.discovered.argocd | default dict).clientId) | default "" }}
+{{- $behindGateway := has "edge-gateway" $ctx.modules }}
+
+{{- $env := dict
+  "global" (dict
+    "domain" (printf "argocd.%s" $ctx.domain)
+    "tolerations" $ctx.scheduling.tolerations)
+  "configs" (dict "cm" dict "rbac" dict "params" dict)
+  "server" (dict "serviceAccount" (dict "annotations" dict))
+}}
+
+{{- /* TLS ends at the platform Gateway, so argocd-server speaks plain HTTP behind it. */ -}}
+{{- if $behindGateway }}
+{{- $_ := set $env.configs.params "server.insecure" true }}
+{{- end }}
+
+{{- /*
+Entra ID sign-in, once `bluepave up` has created the Entra app. argocd-server proves who it is
+with its service account token (Workload Identity), so no client secret exists. Until then, use
+`argocd --core` with your Entra-authenticated kubeconfig.
+*/ -}}
+{{- if $clientId }}
+{{- $oidc := dict
+  "name" "Microsoft Entra ID"
+  "issuer" (printf "https://login.microsoftonline.com/%s/v2.0" $ctx.tenantId)
+  "clientID" $clientId
+  "azure" (dict "useWorkloadIdentity" true)
+  "requestedIDTokenClaims" (dict "groups" (dict "essential" true))
+  "requestedScopes" (list "openid" "profile" "email")
+}}
+{{- $_ := set $env.configs.cm "oidc.config" (toYaml $oidc) }}
+{{- $_ := set $env.server.serviceAccount.annotations "azure.workload.identity/client-id" $clientId }}
+{{- end }}
+
+{{- /* Platform admins are Argo CD admins; nobody else gets access (policy.default is empty). */ -}}
+{{- if $ctx.admins.groupObjectId }}
+{{- $_ := set $env.configs.rbac "policy.csv" (printf "g, %s, role:admin\n" $ctx.admins.groupObjectId) }}
+{{- end }}
+
+{{- $values := mergeOverwrite (.Files.Get "files/argo-cd-values.yaml" | fromYaml) $env (.Values.settings.values | default dict) }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-cd
+  namespace: argocd
+  annotations:
+    # Diff with a server-side dry-run apply, matching ServerSideApply below.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: argo-cd
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Argo CD's CRDs exceed the client-side apply annotation limit.
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

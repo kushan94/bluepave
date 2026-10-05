@@ -1,0 +1,52 @@
+{{- /*
+One Application per enabled module with a gitops layer. The module's chart (modules/<name>/gitops)
+gets the module context under `bluepave` and the module's settings under `settings`, and renders
+its own Applications and manifests (ADR-0002). Sync waves follow the resolved install order, so a
+module syncs after the modules it requires.
+*/ -}}
+{{- $root := . }}
+{{- $context := include "bluepave.context" . | fromYaml }}
+{{- range $i, $m := .Values.resolved.modules }}
+{{- if $m.gitops }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ printf "module-%s" $m.name }}
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: bluepave
+    bluepave.dev/module: {{ $m.name | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $i | quote }}
+  # Removing a module from bluepave.yaml deletes this Application but leaves what it created: an
+  # add-on (Argo CD itself, a policy engine) must be removed deliberately, never by a typo.
+  # Without a deletion finalizer, Argo CD doesn't cascade.
+spec:
+  project: platform
+  source:
+    repoURL: {{ include "bluepave.repoURL" $root | quote }}
+    targetRevision: {{ $root.Values.gitops.revision | quote }}
+    path: {{ $m.gitops | quote }}
+    helm:
+      releaseName: {{ printf "module-%s" $m.name }}
+      valuesObject:
+        bluepave:
+          {{- toYaml $context | nindent 10 }}
+        settings:
+          {{- toYaml ($m.settings | default dict) | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
+{{- end }}
+{{- end }}

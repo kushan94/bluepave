@@ -4,8 +4,8 @@
 
 // any(): optional fields (network, budget) may be absent; the CLI validates the file's schema.
 var platform = any(loadYamlContent('../../bluepave.yaml'))
-// IDs written by `bluepave up` (empty in a fresh repository).
-var discoveredIds = any(loadYamlContent('../../.bluepave/discovered.yaml'))
+// IDs written by `bluepave up` (empty in a fresh repository), under the key `discovered`.
+var discoveredIds = any(loadYamlContent('../../.bluepave/discovered.yaml')).?discovered ?? {}
 var profiles = {
   trial: loadYamlContent('../../profiles/trial.yaml').spec
   standard: loadYamlContent('../../profiles/standard.yaml').spec

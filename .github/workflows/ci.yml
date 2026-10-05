@@ -43,6 +43,46 @@ jobs:
       - name: Every module manifest is valid
         run: '"$RUNNER_TEMP/bluepave" modules'
 
+      - name: .bluepave/resolved.yaml is up to date
+        run: '"$RUNNER_TEMP/bluepave" render -check'
+
+  gitops:
+    name: GitOps layer (root chart, module charts, upstream charts)
+    runs-on: ubuntu-latest
+    env:
+      HELM_VERSION: v4.3.0
+      HELM_SHA256: 86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
+      YQ_VERSION: v4.47.2
+      YQ_SHA256: 1bb99e1019e23de33c7e6afc23e93dad72aad6cf2cb03c797f068ea79814ddb0
+      KUBECONFORM_VERSION: v0.7.0
+      KUBECONFORM_SHA256: c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install helm, yq, kubeconform (pinned, checksums verified)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/bin"; mkdir -p "$bin"; cd "$RUNNER_TEMP"
+          curl -sSLo helm.tgz "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz"
+          echo "$HELM_SHA256  helm.tgz" | sha256sum -c -
+          tar xzf helm.tgz --strip-components=1 -C "$bin" linux-amd64/helm
+          curl -sSLo "$bin/yq" "https://github.com/mikefarah/yq/releases/download/$YQ_VERSION/yq_linux_amd64"
+          echo "$YQ_SHA256  $bin/yq" | sha256sum -c -
+          curl -sSLo kubeconform.tgz "https://github.com/yannh/kubeconform/releases/download/$KUBECONFORM_VERSION/kubeconform-linux-amd64.tar.gz"
+          echo "$KUBECONFORM_SHA256  kubeconform.tgz" | sha256sum -c -
+          tar xzf kubeconform.tgz -C "$bin" kubeconform
+          chmod +x "$bin"/*
+          echo "$bin" >> "$GITHUB_PATH"
+
+      # bluepave render -> root chart -> module charts -> upstream charts, every profile, with
+      # made-up discovered IDs so the paths that need them render too (ADR-0002).
+      - name: Render and validate
+        run: hack/test-gitops.sh
+
   infra:
     name: Module infra layers (Bicep)
     runs-on: ubuntu-latest

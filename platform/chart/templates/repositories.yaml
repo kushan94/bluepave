@@ -1,0 +1,26 @@
+{{- /*
+Helm charts served from OCI registries need an Argo CD repository entry with enableOCI. They're
+public charts, so the entries hold no credentials.
+*/ -}}
+{{- $seen := dict }}
+{{- range .Values.resolved.modules }}
+{{- range .sources }}
+{{- if and (eq .type "oci") (not (hasKey $seen .url)) }}
+{{- $_ := set $seen .url true }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ printf "repo-oci-%s" (sha256sum .url | trunc 10) }}
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+    app.kubernetes.io/managed-by: bluepave
+stringData:
+  type: helm
+  name: {{ .url | quote }}
+  url: {{ .url | quote }}
+  enableOCI: "true"
+{{- end }}
+{{- end }}
+{{- end }}
