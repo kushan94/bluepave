@@ -25,7 +25,7 @@ spec:
   budget: { monthly: 600 }
   data:
     postgres: { skuName: Standard_D2ds_v5, tier: GeneralPurpose, storageSizeGB: 64, highAvailability: Disabled, geoRedundantBackup: false, backupRetentionDays: 14 }
-    cache: inCluster
+    cache: inCluster               # AppCache = Valkey in the app namespace (ADR-0003)
   ingress: inCluster
   modules:
     defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd]

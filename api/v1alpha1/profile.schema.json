@@ -320,6 +320,7 @@
               }
             },
             "cache": {
+              "description": "What backs the AppCache API (ADR-0003): Valkey in the app's namespace, or Azure Managed Redis with Entra ID auth and a private endpoint.",
               "enum": [
                 "inCluster",
                 "azureManagedRedis"

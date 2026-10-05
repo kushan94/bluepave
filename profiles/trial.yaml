@@ -33,7 +33,7 @@ spec:
   budget: { monthly: 100 }
   data:
     postgres: { skuName: Standard_B1ms, tier: Burstable, storageSizeGB: 32, highAvailability: Disabled, geoRedundantBackup: false, backupRetentionDays: 7 }
-    cache: inCluster
+    cache: inCluster               # AppCache = Valkey in the app namespace (ADR-0003)
   ingress: inCluster
   modules:
     # Modules this profile turns on by default. Filled in as modules are ported (design doc,
