@@ -397,4 +397,6 @@ output hubVnetId string = hubVnet.outputs.resourceId
 output egress string = profile.network.egress
 @description('The API server subnet (API Server VNet Integration): network policies allow pods to reach the API server there.')
 output apiServerSubnetPrefix string = spokeSubnetPrefixes.aksApiServer
+// Where private endpoints live, e.g. for network policies that let apps reach a private database.
+output privateEndpointSubnetPrefix string = spokeSubnetPrefixes.privateEndpoints
 output firewallPrivateIp string = useFirewall ? firewall!.outputs.privateIp : ''

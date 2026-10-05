@@ -5,12 +5,16 @@
   "additionalProperties": false,
   "properties": {
     "apis": {
-      "description": "Which platform APIs to offer (ADR-0003). AppDatabase comes in a later module version.",
+      "description": "Which platform APIs to offer (ADR-0003).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "appStorage": {
           "description": "Blob storage with a keyless workload identity. Default: on where the profile allows public network access; profiles with private endpoints only (production) need private-endpoint support, which isn't implemented yet.",
+          "type": "boolean"
+        },
+        "appDatabase": {
+          "description": "A database and an Entra role for the app's workload identity on the platform's PostgreSQL server. Default: on when the data-postgres module is.",
           "type": "boolean"
         },
         "appCache": {

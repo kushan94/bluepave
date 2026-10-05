@@ -39,7 +39,13 @@ discovered:
         clientId: 00000000-0000-0000-0000-000000000016
         appsResourceGroupId: /subscriptions/00000000-0000-0000-0000-00000000000f/resourceGroups/rg-acme-dev-we-apps
         oidcIssuerUrl: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-00000000000a/00000000-0000-0000-0000-000000000017/
+        postgresAdminClientId: 00000000-0000-0000-0000-000000000019
+        postgresAdminName: id-acme-dev-we-pgadmin
+      data-postgres:
+        postgresServerName: psql-acme-dev-we-abcde
+        postgresFqdn: psql-acme-dev-we-abcde.postgres.database.azure.com
       network:
         apiServerSubnetPrefix: 10.11.4.0/28
+        privateEndpointSubnetPrefix: 10.11.9.0/24
       portal:
         appClientId: 00000000-0000-0000-0000-000000000018
