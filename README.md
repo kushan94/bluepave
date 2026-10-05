@@ -57,8 +57,10 @@ repository):
 2. **infra:** every module's deployment stack, in order, outputs into `.bluepave/discovered.yaml`.
 3. **identities:** Entra apps for Argo CD, Grafana and the portal, Kargo's admin credentials and
    the portal's client secret in Key Vault.
+4. **github-app:** the platform's GitHub App. You confirm it once in the browser and install it
+   on your account; its credentials go to Key Vault.
 
-The platform GitHub App and the GitOps bootstrap (Argo CD) are next
+The GitOps bootstrap (Argo CD), `status` and `down` are next
 ([docs/design/configuration.md](docs/design/configuration.md), section 8).
 
 ## Contributing

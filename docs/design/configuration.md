@@ -125,7 +125,8 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
    - `up -step accounts` and `-step identities`: providers, admins group, CI identity and GitHub
      OIDC with main-only environments, Entra apps (Argo CD, Grafana, portal), Key Vault secrets,
      repository variables (done).
-   - The platform GitHub App (manifest flow) and its secrets.
+   - `up -step github-app`: the platform GitHub App (manifest flow), its installation, and its
+     credentials in every environment's Key Vault (done).
    - GitOps bootstrap, `status`, `down`.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.
