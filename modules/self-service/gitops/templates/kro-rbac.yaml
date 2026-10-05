@@ -1,0 +1,27 @@
+# kro runs in rbac mode "aggregation": it may manage only what ClusterRoles with this label grant.
+# This one covers the platform APIs and the kinds they're composed of.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kro:platform-apis
+  labels:
+    rbac.kro.run/aggregate-to-controller: "true"
+rules:
+  # The platform's own APIs (instances of the ResourceGraphDefinitions).
+  - apiGroups: [platform.bluepave.dev]
+    resources: ["*"]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # The Azure Service Operator kinds AppStorage composes.
+  - apiGroups: [managedidentity.azure.com]
+    resources: [userassignedidentities, federatedidentitycredentials]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [storage.azure.com]
+    resources: [storageaccounts, storageaccountsblobservices, storageaccountsblobservicescontainers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [authorization.azure.com]
+    resources: [roleassignments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Reads platform-settings (externalRef) and writes each app's connection ConfigMap.
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, list, watch, create, update, patch, delete]

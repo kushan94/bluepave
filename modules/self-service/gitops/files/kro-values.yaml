@@ -1,0 +1,10 @@
+# Base values for the kro chart. kro turns a ResourceGraphDefinition (templates/rgd-*.yaml) into a
+# new CRD, and creates the composed resources for every instance.
+rbac:
+  # Least privilege: kro may manage only the kinds that ClusterRoles labelled
+  # rbac.kro.run/aggregate-to-controller grant (templates/kro-rbac.yaml), not everything.
+  mode: aggregation
+deployment:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }

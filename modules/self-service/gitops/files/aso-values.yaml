@@ -1,0 +1,20 @@
+# Base values for the azure-service-operator chart. templates/operators.yaml adds the IDs, replicas
+# and scheduling. ASO creates the Azure resources app teams request through the platform APIs; its
+# identity can only work in the apps resource group (infra/main.bicep).
+
+# Only the CRD groups the platform offers. Every CRD costs API server and Argo CD memory, and the
+# full set is several hundred. (The chart still renders a webhook configuration per API group;
+# those for absent kinds never match anything.)
+crdPattern: "managedidentity.azure.com/*;storage.azure.com/*;authorization.azure.com/*"
+
+# Workload Identity: no client secret.
+useWorkloadIdentityAuth: true
+
+# Reconciles against Azure every hour (default 15 min), which is enough to correct drift.
+azureSyncPeriod: 1h
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+go:
+  memLimit: 400MiB

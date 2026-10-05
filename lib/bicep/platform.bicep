@@ -96,6 +96,7 @@ func resourceNames(env string, subscriptionId string) object => {
   rgAks: 'rg-${prefix}-${env}-${regionCode}-aks'
   rgAksNodes: 'rg-${prefix}-${env}-${regionCode}-aks-nodes'
   rgData: 'rg-${prefix}-${env}-${regionCode}-data'
+  rgApps: 'rg-${prefix}-${env}-${regionCode}-apps'
   logAnalytics: 'log-${prefix}-${env}-${regionCode}'
   monitorWorkspace: 'amw-${prefix}-${env}-${regionCode}'
   hubVnet: 'vnet-${prefix}-${env}-${regionCode}-hub'

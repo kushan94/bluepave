@@ -1,0 +1,19 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: self-service
+  description: Platform APIs apps use to get Azure resources (AppStorage), built on Azure Service Operator and kro
+spec:
+  version: 0.1.0
+  requires: [aks, gitops-argocd]
+  outputs: [clientId, appsResourceGroupId, oidcIssuerUrl]
+  sources:
+    - { url: https://raw.githubusercontent.com/Azure/azure-service-operator/main/v2/charts, type: helm }
+    - { url: registry.k8s.io/kro/charts, type: oci }
+  config:
+    schema: config.schema.json
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

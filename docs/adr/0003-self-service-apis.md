@@ -30,8 +30,9 @@ the Azure providers).
 - Guardrails are set by the platform, not the app: SKU (from the size, mapped by the profile),
   private endpoint, Entra ID-only auth, tags, diagnostic settings, and the app's workload
   identity with the data role it needs.
-- App namespaces may not create ASO kinds directly. Only the platform's resource graphs create
-  them.
+- App namespaces may not create ASO kinds directly; only the platform's resource graphs create
+  them. App onboarding enforces this with the app's Argo CD project, which allows only the
+  platform's API kinds, not ASO's.
 - Each API publishes connection details in a ConfigMap. They aren't secrets, because access is by
   workload identity.
 
@@ -84,8 +85,9 @@ without app changes.
 ### 5. Guardrails
 
 - **Sizes are enums,** and each profile maps them to SKUs.
-- **A per-namespace quota limits each API** (e.g. at most two caches), enforced by admission
-  policy.
+- **A per-namespace quota limits each API** (e.g. at most two caches). It's a ResourceQuota on
+  object counts (`count/appcaches.platform.bluepave.dev`), created by app onboarding with each
+  app namespace; no admission policy is needed.
 - **Data outlives its Kubernetes object.** Data-bearing Azure resources use ASO's `detach`
   reconcile policy on deletion, so deleting the object (or the app) keeps the data in Azure.
   Removing it is a separate, deliberate step.
@@ -105,8 +107,12 @@ Any engine behind the API must pass the same tests.
 ## Consequences
 
 - One module, `self-service`, replaces `self-service-appstorage`. Its settings choose which APIs
-  are on. It requires `aks`, `gitops-argocd`, `policy-kyverno`, and `data-postgres` when
-  `AppDatabase` is on, so it lands after `policy-kyverno`.
+  are on. It requires `aks` and `gitops-argocd` (and `data-postgres` once `AppDatabase` lands).
+  The per-namespace guardrails (quota, no raw ASO kinds) live in app onboarding, which creates
+  the namespaces.
+- Private endpoints for API resources come with a later module version. Until then, profiles
+  without public network access (`production`) don't offer AppStorage, rather than creating
+  public accounts.
 - The profile's `data.cache` now selects the backing of `AppCache`, not a platform service.
 - Apps' hand-written in-cluster services (the reference app's Valkey) are replaced by
   `AppCache`.
