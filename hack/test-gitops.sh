@@ -62,7 +62,13 @@ for profile in profiles/*.yaml; do
         ns=$(yq -r "$q | .spec.destination.namespace" "$dir/modules/$app.yaml")
         yq "$q | .spec.source.helm.valuesObject" "$dir/modules/$app.yaml" > "$dir/upstream/$sub.values.yaml"
         echo "== $name/$env: $app -> $chart $version"
-        if [[ $repo == http* ]]; then src=(--repo "$repo" "$chart"); else src=("oci://$repo/$chart"); fi
+        if [[ $repo == http* ]]; then
+          src=(--repo "$repo" "$chart")
+        else
+          # Pull first: for OCI registries helm prints "Pulled:"/"Digest:" to stdout.
+          helm pull "oci://$repo/$chart" --version "$version" -d "$dir/upstream" >/dev/null 2>&1
+          src=("$dir/upstream/$chart-$version.tgz")
+        fi
         helm template "$sub" "${src[@]}" --version "$version" --namespace "$ns" \
           -f "$dir/upstream/$sub.values.yaml" > "$dir/upstream/$sub.yaml"
         kubeconform_ -ignore-missing-schemas "$dir/upstream/$sub.yaml" || status=1

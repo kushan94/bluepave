@@ -1,0 +1,16 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: delivery-kargo
+  description: Kargo, promoting signed images through each app's stages by committing to Git
+spec:
+  version: 0.1.0
+  requires: [aks, registry, gitops-argocd, secrets-external, certificates]
+  outputs: [clientId]
+  sources:
+    - { url: ghcr.io/akuity/kargo-charts, type: oci }
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

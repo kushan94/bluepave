@@ -1,0 +1,44 @@
+{{- $ctx := .Values.bluepave }}
+{{- $ids := index $ctx.discovered "delivery-kargo" | default dict }}
+{{- $env := dict
+  "global" (dict "tolerations" $ctx.scheduling.tolerations)
+  "controller" (dict "serviceAccount" (dict "annotations" dict))
+}}
+{{- if $ids.clientId }}
+{{- $_ := set $env.controller.serviceAccount.annotations "azure.workload.identity/client-id" $ids.clientId }}
+{{- end }}
+{{- $values := mergeOverwrite (.Files.Get "files/kargo-values.yaml" | fromYaml) $env }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kargo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: platform
+  source:
+    # An OCI registry: the root chart adds its repository entry (module.yaml spec.sources).
+    repoURL: {{ .Values.upstream.repoURL | quote }}
+    chart: {{ .Values.upstream.chart | quote }}
+    targetRevision: {{ .Values.upstream.version | quote }}
+    helm:
+      releaseName: kargo
+      valuesObject:
+        {{- toYaml $values | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kargo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
