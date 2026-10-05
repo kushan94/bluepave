@@ -1,6 +1,7 @@
 {{- /*
 App namespaces may only run their own images from the platform registry, <registry>/<app>-*, plus
-the exact references in settings.allowedImages. That keeps unsigned images from other registries
+the exact references in settings.allowedImages and those enabled modules declare (module.yaml
+spec.appImages, e.g. the cache behind AppCache). That keeps unsigned images from other registries
 out (the signature policy only looks at the platform registry) and stops one app from running
 another app's images. A native ValidatingAdmissionPolicy (CEL), evaluated by the API server
 itself. Rendered once the registry's login server is discovered.
@@ -30,7 +31,7 @@ spec:
       expression: >-
         {{ printf "'%s/' + namespaceObject.metadata.labels['%s'] + '-'" $registry $label }}
     - name: allowed
-      expression: {{ (printf "%s" (.Values.settings.allowedImages | default list | toJson)) | quote }}
+      expression: {{ (concat (.Values.settings.allowedImages | default list) (.Values.bluepave.appImages | default list) | uniq | toJson) | quote }}
     - name: denied
       expression: >-
         variables.images.filter(i, !i.startsWith(variables.prefix) && !(i in variables.allowed))

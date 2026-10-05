@@ -118,6 +118,15 @@
           },
           "uniqueItems": true
         },
+        "appImages": {
+          "description": "Images this module runs in app namespaces, e.g. the in-cluster backing of a platform API. The admission policy (policy-kyverno) allows exactly these references there, besides each app's own images. Pin them by digest.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]+(:[0-9]+)?/[^\\s@]+@sha256:[a-f0-9]{64}$"
+          },
+          "uniqueItems": true
+        },
         "config": {
           "type": "object",
           "additionalProperties": false,

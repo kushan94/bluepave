@@ -38,6 +38,7 @@ type Module struct {
 	Gitops    string             `yaml:"gitops,omitempty"` // chart path, relative to the repository root
 	Sources   []modules.Source   `yaml:"sources,omitempty"`
 	Hostnames []modules.Hostname `yaml:"hostnames,omitempty"`
+	AppImages []string           `yaml:"appImages,omitempty"`
 	Settings  map[string]any     `yaml:"settings,omitempty"`
 }
 
@@ -54,6 +55,7 @@ func Build(root string, p *config.Platform, ordered []*modules.Module) (*Resolve
 			Version:   m.Spec.Version,
 			Sources:   m.Spec.Sources,
 			Hostnames: m.Spec.Hostnames,
+			AppImages: m.Spec.AppImages,
 			Settings:  p.Spec.Modules[m.Metadata.Name].Settings,
 		}
 		if g, ok := m.Spec.Layers["gitops"]; ok {

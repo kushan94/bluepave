@@ -49,3 +49,13 @@ spec:
 {{- .Values.bluepave.profile.network.allowPublicNetworkAccess -}}
 {{- end -}}
 {{- end -}}
+
+{{/* Whether AppCache is offered: the setting, else on where the profile's cache is in-cluster. */}}
+{{- define "ss.appCache" -}}
+{{- $apis := .Values.settings.apis | default dict -}}
+{{- if hasKey $apis "appCache" -}}
+{{- $apis.appCache -}}
+{{- else -}}
+{{- eq ((.Values.bluepave.profile.data | default dict).cache | default "inCluster") "inCluster" -}}
+{{- end -}}
+{{- end -}}

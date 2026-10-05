@@ -21,6 +21,16 @@ rules:
   - apiGroups: [authorization.azure.com]
     resources: [roleassignments]
     verbs: [get, list, watch, create, update, patch, delete]
+  # What AppCache composes in the app's namespace: Valkey, its Service and NetworkPolicies.
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
   # Reads platform-settings (externalRef) and writes each app's connection ConfigMap.
   - apiGroups: [""]
     resources: [configmaps]

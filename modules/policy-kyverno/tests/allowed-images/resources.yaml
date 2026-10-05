@@ -35,3 +35,19 @@ spec:
     - { name: setup, image: docker.io/library/busybox:1.37 }
   containers:
     - { name: api, image: cracme.azurecr.io/anvil-api:1.0.0 }
+---
+# An image a module declares (AppCache's Valkey), exactly as declared.
+apiVersion: v1
+kind: Pod
+metadata: { name: module-image, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: valkey, image: "docker.io/valkey/valkey:9.1.2@sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+---
+# The same image at another digest isn't the declared one.
+apiVersion: v1
+kind: Pod
+metadata: { name: module-image-other-digest, namespace: anvil-dev }
+spec:
+  containers:
+    - { name: valkey, image: "docker.io/valkey/valkey:9.1.2@sha256:2222222222222222222222222222222222222222222222222222222222222222" }

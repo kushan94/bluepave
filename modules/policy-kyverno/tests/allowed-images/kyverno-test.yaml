@@ -8,5 +8,5 @@ variables: values.yaml
 resources:
   - resources.yaml
 results:
-  - { policy: app-allowed-images, resources: [own-image, allowed-image], kind: Pod, result: pass }
-  - { policy: app-allowed-images, resources: [other-app-image, other-registry, init-container-checked], kind: Pod, result: fail }
+  - { policy: app-allowed-images, resources: [own-image, allowed-image, module-image], kind: Pod, result: pass }
+  - { policy: app-allowed-images, resources: [other-app-image, other-registry, init-container-checked, module-image-other-digest], kind: Pod, result: fail }

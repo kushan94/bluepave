@@ -1,0 +1,218 @@
+# AppCache: the platform API for a cache (ADR-0003), backed by Valkey in the app's namespace
+# (profile data.cache: inCluster).
+#
+# An app team commits one small object next to its app:
+#
+#   apiVersion: platform.bluepave.dev/v1alpha1
+#   kind: AppCache
+#   metadata: { name: sessions, namespace: anvil-dev }
+#   spec:
+#     size: small            # small (64 MB), medium (256 MB), large (1 GB)
+#
+# kro expands it into:
+#   - a Valkey Deployment (module.yaml spec.appImages: the admission policy allows exactly this
+#     image) and its Service, <name>-cache;
+#   - NetworkPolicies: only pods of the same namespace reach the cache, and they may (the app's own
+#     default-deny would otherwise block them); the cache itself has no egress;
+#   - a ConfigMap "<name>-cache" with CACHE_HOST, CACHE_PORT, CACHE_TLS, CACHE_AUTH and CACHE_URL.
+#     The same keys will describe Azure Managed Redis (data.cache: azureManagedRedis), so apps
+#     don't change between profiles.
+# It's a cache: nothing is persisted, and a restart starts empty. No password: the namespace
+# boundary (NetworkPolicy) is the access control, as for anything else inside the app's namespace.
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: appcache.platform.bluepave.dev
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: AppCache
+    group: platform.bluepave.dev
+    spec:
+      size: string | default="small" enum="small,medium,large"
+    status:
+      host: ${connection.data.CACHE_HOST}
+      ready: ${deployment.status.?availableReplicas.orValue(0) >= 1}
+
+  resources:
+    - id: deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.metadata.name + "-cache"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/name: valkey
+            app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appcache
+        spec:
+          replicas: 1
+          # One instance holds the data in memory: replace it, never run two.
+          strategy:
+            type: Recreate
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: valkey
+              app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: valkey
+                app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+                platform.bluepave.dev/api: appcache
+            spec:
+              automountServiceAccountToken: false
+              enableServiceLinks: false
+              # Pod Security "restricted": the app namespaces enforce it.
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 999
+                runAsGroup: 999
+                fsGroup: 999
+                seccompProfile: { type: RuntimeDefault }
+              # A cache may run on Spot nodes where the platform has them.
+              tolerations:
+                - key: kubernetes.azure.com/scalesetpriority
+                  operator: Equal
+                  value: spot
+                  effect: NoSchedule
+              containers:
+                - name: valkey
+                  # Pinned by digest; must equal module.yaml spec.appImages.
+                  image: docker.io/valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
+                  command:
+                    - valkey-server
+                    - --port
+                    - "6379"
+                    # A cache: no snapshots, no append-only file.
+                    - --save
+                    - ""
+                    - --appendonly
+                    - "no"
+                    - --dir
+                    - /data
+                    # Evict the least recently used keys when full, rather than failing writes.
+                    - --maxmemory
+                    - '${schema.spec.size == "large" ? "1gb" : (schema.spec.size == "medium" ? "256mb" : "64mb")}'
+                    - --maxmemory-policy
+                    - allkeys-lru
+                    # Reachable from other pods without a password; NetworkPolicy limits who.
+                    - --protected-mode
+                    - "no"
+                  ports:
+                    - name: valkey
+                      containerPort: 6379
+                  readinessProbe:
+                    exec:
+                      command: [valkey-cli, ping]
+                    periodSeconds: 10
+                  livenessProbe:
+                    tcpSocket:
+                      port: valkey
+                    periodSeconds: 20
+                  resources:
+                    # Memory above maxmemory for Valkey's own overhead.
+                    requests:
+                      cpu: 10m
+                      memory: '${schema.spec.size == "large" ? "1200Mi" : (schema.spec.size == "medium" ? "320Mi" : "96Mi")}'
+                    limits:
+                      memory: '${schema.spec.size == "large" ? "1200Mi" : (schema.spec.size == "medium" ? "320Mi" : "96Mi")}'
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    readOnlyRootFilesystem: true
+                    capabilities:
+                      drop: [ALL]
+                  volumeMounts:
+                    - name: data
+                      mountPath: /data
+              volumes:
+                - name: data
+                  emptyDir:
+                    sizeLimit: 64Mi
+      readyWhen:
+        - ${deployment.status.?availableReplicas.orValue(0) >= 1}
+
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name + "-cache"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appcache
+        spec:
+          selector:
+            app.kubernetes.io/name: valkey
+            app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+          ports:
+            - name: valkey
+              port: 6379
+              targetPort: valkey
+
+    # The cache: ingress only from pods in its namespace, no egress at all.
+    - id: cachePolicy
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: ${schema.metadata.name + "-cache"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appcache
+        spec:
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: valkey
+              app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+          policyTypes: [Ingress, Egress]
+          ingress:
+            - from:
+                - podSelector: {}
+              ports:
+                - { port: 6379, protocol: TCP }
+
+    # The namespace's pods may reach the cache (an app's default-deny egress would block it).
+    - id: clientPolicy
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: ${schema.metadata.name + "-cache-clients"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appcache
+        spec:
+          podSelector: {}
+          policyTypes: [Egress]
+          egress:
+            - to:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: valkey
+                      app.kubernetes.io/instance: ${schema.metadata.name + "-cache"}
+              ports:
+                - { port: 6379, protocol: TCP }
+
+    - id: connection
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name + "-cache"}
+          namespace: ${schema.metadata.namespace}
+          labels:
+            app.kubernetes.io/managed-by: kro
+            platform.bluepave.dev/api: appcache
+        data:
+          CACHE_HOST: ${service.metadata.name + "." + schema.metadata.namespace + ".svc.cluster.local"}
+          CACHE_PORT: "6379"
+          CACHE_TLS: "false"
+          # none: no credentials (in-cluster). entra: a token for the workload identity (Azure).
+          CACHE_AUTH: none
+          CACHE_URL: ${"redis://" + service.metadata.name + "." + schema.metadata.namespace + ".svc.cluster.local:6379"}

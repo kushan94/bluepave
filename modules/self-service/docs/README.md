@@ -1,13 +1,13 @@
 # self-service
 
-Platform APIs app teams use to get Azure resources, by committing a few lines of YAML next to
+Platform APIs app teams use to get backing services, by committing a few lines of YAML next to
 their app ([ADR-0003](../../../docs/adr/0003-self-service-apis.md)). The platform decides the
 guardrails; the app gets a keyless workload identity with access to exactly that resource.
 
 | API | Gives the app | Status |
 |---|---|---|
 | `AppStorage` | A storage account and blob container, Entra ID only | Available |
-| `AppCache` | Valkey in the namespace or Azure Managed Redis, per profile | Next version |
+| `AppCache` | A cache: Valkey in the namespace (`data.cache: inCluster`) | Available; Azure Managed Redis (`azureManagedRedis`) in a later version |
 | `AppDatabase` | A database and role on the shared PostgreSQL server | Next version |
 
 ## AppStorage
@@ -39,6 +39,31 @@ deliberately, or re-create the `AppStorage` to reattach.
 Entra ID only, but the account endpoint is public. Private endpoints come with a later version,
 so `production` doesn't offer AppStorage yet. `settings.apis.appStorage` overrides this.
 
+## AppCache
+
+```yaml
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppCache
+metadata: { name: sessions, namespace: anvil-dev }
+spec:
+  size: small        # small (64 MB), medium (256 MB) or large (1 GB)
+```
+
+With the profile's `data.cache: inCluster` (`trial`, `standard`), kro creates in the app's
+namespace:
+- a Valkey Deployment and Service, `<name>-cache`, evicting the least recently used keys when
+  full. It's a cache: nothing is persisted, and a restart starts empty.
+- NetworkPolicies: only the namespace's own pods reach it (no password; the namespace is the
+  boundary), they may reach it despite the app's default-deny egress, and Valkey itself has no
+  egress;
+- a ConfigMap `<name>-cache` with `CACHE_HOST`, `CACHE_PORT`, `CACHE_TLS` (`false`),
+  `CACHE_AUTH` (`none`) and `CACHE_URL`. Azure Managed Redis will fill the same keys (with TLS and
+  `CACHE_AUTH: entra`), so apps read them rather than assume a backing.
+
+The Valkey image is pinned by digest in `module.yaml` (`spec.appImages`), which is how the
+admission policy (policy-kyverno) allows it in app namespaces; CI checks the resource graph uses
+exactly that image.
+
 ## How it's locked down
 
 - **ASO** signs in with Workload Identity (`id-<prefix>-<env>-<region>-aso`). On the apps
@@ -49,10 +74,13 @@ so `production` doesn't offer AppStorage yet. `settings.apis.appStorage` overrid
     itself more.
 
   Creating that assignment needs Owner or User Access Administrator on the subscription.
-- **kro** runs with aggregated RBAC: it may manage only the platform API kinds and the ASO kinds
-  they're built from.
+- **kro** runs with aggregated RBAC: it may manage only the platform API kinds and the kinds
+  they're built from: ASO's, plus Deployments, Services, NetworkPolicies and ConfigMaps for
+  AppCache. That role is cluster-wide; the resource graphs create objects only in the namespace
+  of the object they expand.
 - **ASO installs only the CRD groups** the APIs use (`crdPattern`), not several hundred.
-- **App namespaces can't create ASO kinds directly**, and a quota limits each API per namespace.
+- **App namespaces can't create ASO kinds directly**, and a quota limits each API per namespace
+  (two `AppStorage`, two `AppCache`).
   App onboarding enforces both (its Argo CD project and a ResourceQuota).
 
 ## Settings
@@ -65,6 +93,7 @@ spec:
       settings:
         apis:
           appStorage: true
+          appCache: true
 ```
 
 **Outputs:** `clientId`, `appsResourceGroupId`, `oidcIssuerUrl`.
