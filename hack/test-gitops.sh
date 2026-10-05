@@ -49,8 +49,10 @@ for profile in profiles/*.yaml; do
 
     # Each module Application: render its chart with the values the root gave it.
     for app in $(names "$dir/root.yaml" 'select(.kind == "Application")'); do
-      path=$(yq -r "select(.metadata.name == \"$app\") | .spec.source.path" "$dir/root.yaml")
-      yq "select(.metadata.name == \"$app\") | .spec.source.helm.valuesObject" "$dir/root.yaml" > "$dir/$app.values.yaml"
+      # Select by kind too: a module may name an Application and, say, an HTTPRoute alike.
+      app_q="select(.kind == \"Application\" and .metadata.name == \"$app\")"
+      path=$(yq -r "$app_q | .spec.source.path" "$dir/root.yaml")
+      yq "$app_q | .spec.source.helm.valuesObject" "$dir/root.yaml" > "$dir/$app.values.yaml"
       echo "== $name/$env: $app ($path)"
       helm lint --quiet "$path" -f "$dir/$app.values.yaml" >/dev/null || { echo "::error::helm lint $path ($name)"; status=1; }
       helm template "$app" "$path" --namespace argocd -f "$dir/$app.values.yaml" > "$dir/modules/$app.yaml"
@@ -59,7 +61,7 @@ for profile in profiles/*.yaml; do
       # Applications the module installs from a Helm repository: render the upstream chart with
       # the computed values, which catches values the chart rejects.
       for sub in $(names "$dir/modules/$app.yaml" 'select(.kind == "Application" and .spec.source.chart != null)'); do
-        q="select(.metadata.name == \"$sub\")"
+        q="select(.kind == \"Application\" and .metadata.name == \"$sub\")"
         repo=$(yq -r "$q | .spec.source.repoURL" "$dir/modules/$app.yaml")
         chart=$(yq -r "$q | .spec.source.chart" "$dir/modules/$app.yaml")
         version=$(yq -r "$q | .spec.source.targetRevision" "$dir/modules/$app.yaml")

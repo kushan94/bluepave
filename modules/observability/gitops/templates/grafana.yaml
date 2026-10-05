@@ -1,0 +1,70 @@
+{{- /*
+Grafana, signed in with Microsoft Entra ID once `bluepave up` has created its Entra app
+(discovered observability.appClientId), and querying managed Prometheus as the module's
+read-only identity (observability.clientId) once the workspace's query endpoint is discovered.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $ids := index $ctx.discovered "observability" | default dict }}
+{{- $ini := dict "server" (dict "root_url" (printf "https://grafana.%s" $ctx.domain)) }}
+{{- $env := dict
+  "tolerations" $ctx.scheduling.tolerations
+  "grafana.ini" $ini
+  "serviceAccount" (dict "annotations" dict)
+}}
+
+{{- if $ids.clientId }}
+{{- $_ := set $env.serviceAccount.annotations "azure.workload.identity/client-id" $ids.clientId }}
+{{- $_ := set $ini "azure" (dict "workload_identity_tenant_id" $ctx.tenantId "workload_identity_client_id" $ids.clientId) }}
+{{- end }}
+
+{{- if $ids.appClientId }}
+{{- $login := printf "https://login.microsoftonline.com/%s/oauth2/v2.0" $ctx.tenantId }}
+{{- $_ := set $ini "auth.azuread" (dict
+  "client_id" $ids.appClientId
+  "auth_url" (printf "%s/authorize" $login)
+  "token_url" (printf "%s/token" $login)
+  "allowed_groups" $ctx.admins.groupObjectId) }}
+{{- end }}
+
+{{- $sources := list (dict
+  "name" "Tempo" "uid" "tempo" "type" "tempo"
+  "url" "http://tempo.observability.svc.cluster.local:3200"
+  "jsonData" (dict "serviceMap" (dict "datasourceUid" "prometheus"))) }}
+{{- with $ids.monitorWorkspaceQueryEndpoint }}
+{{- $sources = prepend $sources (dict
+  "name" "Azure Managed Prometheus" "uid" "prometheus" "type" "prometheus" "isDefault" true
+  "url" .
+  "jsonData" (dict "httpMethod" "POST" "azureCredentials" (dict "authType" "workloadidentity"))) }}
+{{- end }}
+{{- $_ := set $env "datasources" (dict "datasources.yaml" (dict "apiVersion" 1 "datasources" $sources)) }}
+
+{{- $values := mergeOverwrite (.Files.Get "files/grafana-values.yaml" | fromYaml) $env }}
+{{ include "obs.application" (dict "name" "grafana" "upstream" .Values.upstream.grafana "values" $values) }}
+{{- if has "edge-gateway" $ctx.modules }}
+---
+# Grafana at https://grafana.<env>.<domain>, through the Gateway's https-grafana listener.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+    - name: {{ $ctx.gateway.name }}
+      namespace: {{ $ctx.gateway.namespace }}
+      sectionName: https-grafana
+  hostnames:
+    - {{ printf "grafana.%s" $ctx.domain | quote }}
+  rules:
+    - filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+      backendRefs:
+        - name: grafana
+          port: 80
+{{- end }}

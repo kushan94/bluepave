@@ -1,0 +1,13 @@
+# Settings for the AKS managed Prometheus agent (ama-metrics, wired by the aks module). Pod-annotation
+# scraping is opt-in per namespace: app stage namespaces (<app>-<stage>, created by app onboarding)
+# are scraped through their prometheus.io/* annotations, so a new app needs no change here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ama-metrics-settings-configmap
+  namespace: kube-system
+data:
+  schema-version: v1
+  config-version: ver1
+  pod-annotation-based-scraping: |-
+    podannotationnamespaceregex = "^[a-z0-9-]+-(dev|staging|prod)$"

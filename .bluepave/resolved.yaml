@@ -67,6 +67,7 @@ resolved:
         - policy-kyverno
         - runtime-falco
         - edge-gateway
+        - observability
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -129,6 +130,17 @@ resolved:
           type: helm
     - name: governance
       version: 0.1.0
+    - name: observability
+      version: 0.1.0
+      gitops: modules/observability/gitops
+      sources:
+        - url: https://open-telemetry.github.io/opentelemetry-helm-charts
+          type: helm
+        - url: https://grafana.github.io/helm-charts
+          type: helm
+      hostnames:
+        - name: grafana
+          namespace: observability
     - name: policy-kyverno
       version: 0.1.0
       gitops: modules/policy-kyverno/gitops
