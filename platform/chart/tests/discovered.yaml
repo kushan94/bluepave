@@ -27,3 +27,7 @@ discovered:
         containerRegistryLoginServer: cracmedevweabcde.azurecr.io
       policy-kyverno:
         clientId: 00000000-0000-0000-0000-000000000012
+      edge-gateway:
+        clientId: 00000000-0000-0000-0000-000000000013
+        dnsZoneName: dev.platform.example.com
+        dnsZoneResourceGroup: rg-acme-global-we

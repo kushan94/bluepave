@@ -33,11 +33,12 @@ type Resolved struct {
 
 // Module is one enabled module.
 type Module struct {
-	Name     string           `yaml:"name"`
-	Version  string           `yaml:"version"`
-	Gitops   string           `yaml:"gitops,omitempty"` // chart path, relative to the repository root
-	Sources  []modules.Source `yaml:"sources,omitempty"`
-	Settings map[string]any   `yaml:"settings,omitempty"`
+	Name      string             `yaml:"name"`
+	Version   string             `yaml:"version"`
+	Gitops    string             `yaml:"gitops,omitempty"` // chart path, relative to the repository root
+	Sources   []modules.Source   `yaml:"sources,omitempty"`
+	Hostnames []modules.Hostname `yaml:"hostnames,omitempty"`
+	Settings  map[string]any     `yaml:"settings,omitempty"`
 }
 
 // Build resolves the platform's modules. ordered must come from modules.Resolve.
@@ -49,10 +50,11 @@ func Build(root string, p *config.Platform, ordered []*modules.Module) (*Resolve
 	r := &Resolved{Profile: p.Spec.Profile, ProfileSpec: profileSpec, Modules: []Module{}}
 	for _, m := range ordered {
 		out := Module{
-			Name:     m.Metadata.Name,
-			Version:  m.Spec.Version,
-			Sources:  m.Spec.Sources,
-			Settings: p.Spec.Modules[m.Metadata.Name].Settings,
+			Name:      m.Metadata.Name,
+			Version:   m.Spec.Version,
+			Sources:   m.Spec.Sources,
+			Hostnames: m.Spec.Hostnames,
+			Settings:  p.Spec.Modules[m.Metadata.Name].Settings,
 		}
 		if g, ok := m.Spec.Layers["gitops"]; ok {
 			rel, err := filepath.Rel(root, filepath.Join(m.Dir, g))

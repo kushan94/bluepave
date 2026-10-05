@@ -26,6 +26,6 @@ spec:
   data:
     postgres: { skuName: Standard_D2ds_v5, tier: GeneralPurpose, storageSizeGB: 64, highAvailability: ZoneRedundant, geoRedundantBackup: true, backupRetentionDays: 35 }
     cache: azureManagedRedis       # AppCache = Azure Managed Redis, Entra ID auth (ADR-0003)
-  ingress: agc
+  ingress: inCluster              # Envoy Gateway; Application Gateway for Containers (agc) isn't implemented yet
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco, edge-gateway]

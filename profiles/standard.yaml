@@ -28,4 +28,4 @@ spec:
     cache: inCluster               # AppCache = Valkey in the app namespace (ADR-0003)
   ingress: inCluster
   modules:
-    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco]
+    defaultsEnabled: [governance, monitoring, dns, network, registry, keyvault, aks, data-postgres, gitops-argocd, secrets-external, certificates, delivery-kargo, rollouts, policy-kyverno, runtime-falco, edge-gateway]

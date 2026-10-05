@@ -1,0 +1,17 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: edge-gateway
+  description: The public entry point - Envoy Gateway (Gateway API), a wildcard certificate, and DNS records by external-dns
+spec:
+  version: 0.1.0
+  requires: [aks, dns, gitops-argocd, certificates]
+  outputs: [clientId, dnsZoneName, dnsZoneResourceGroup]
+  sources:
+    - { url: docker.io/envoyproxy, type: oci }
+    - { url: https://kubernetes-sigs.github.io/external-dns, type: helm }
+  layers:
+    infra: infra/main.bicep
+    gitops: gitops
+    docs: docs
+  tests: tests

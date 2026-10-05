@@ -1,0 +1,137 @@
+{{- /*
+The public entry point: one Envoy Gateway behind the AKS public load balancer, serving every
+*.<env>.<domain> hostname with one wildcard Let's Encrypt certificate (DNS-01, certificates module).
+  http  :80  -> 301 to https
+  https :443 -> app routes (namespaces labelled by app onboarding) on the wildcard listener, and
+                each platform hostname (module.yaml spec.hostnames) on its own listener
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- $gw := $ctx.gateway }}
+{{- $s := $ctx.scheduling }}
+{{- $tls := dict "mode" "Terminate" "certificateRefs" (list (dict "name" "wildcard-tls")) }}
+{{- $sync := "SkipDryRunOnMissingResource=true" }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $gw.namespace }}
+---
+# How Envoy proxy pods run: two replicas where the profile is highly available, one on trial.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: envoy
+  namespace: {{ $gw.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: {{ $sync }}
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: {{ ternary 2 1 $s.highAvailability }}
+        container:
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { memory: 256Mi }
+        {{- with $s.tolerations }}
+        pod:
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy
+  annotations:
+    argocd.argoproj.io/sync-options: {{ $sync }}
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: envoy
+    namespace: {{ $gw.namespace }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard
+  namespace: {{ $gw.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: {{ $sync }}
+spec:
+  secretName: wildcard-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+  dnsNames:
+    - {{ printf "*.%s" $ctx.domain | quote }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gw.name }}
+  namespace: {{ $gw.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: {{ $sync }}
+spec:
+  gatewayClassName: envoy
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # Apps: any onboarded app namespace may attach routes for *.<env>.<domain>.
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: {{ printf "*.%s" $ctx.domain | quote }}
+      tls:
+        {{- toYaml $tls | nindent 8 }}
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: platform.bluepave.dev/app
+                operator: Exists
+    # Platform hostnames get their own listeners. A request goes to the listener with the most
+    # specific matching hostname, so an app route claiming one of these on the wildcard listener
+    # never receives its traffic.
+    {{- range $ctx.platformHosts }}
+    - name: {{ printf "https-%s" .name }}
+      protocol: HTTPS
+      port: 443
+      hostname: {{ printf "%s.%s" .name $ctx.domain | quote }}
+      tls:
+        {{- toYaml $tls | nindent 8 }}
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace }}
+    {{- end }}
+---
+# Everything on plain HTTP is redirected to HTTPS.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: redirect-to-https
+  namespace: {{ $gw.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: {{ $sync }}
+spec:
+  # No hostnames: matches every request on :80, and external-dns creates no records for it.
+  parentRefs:
+    - name: {{ $gw.name }}
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

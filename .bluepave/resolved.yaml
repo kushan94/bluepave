@@ -66,6 +66,7 @@ resolved:
         - rollouts
         - policy-kyverno
         - runtime-falco
+        - edge-gateway
     network:
       allowPublicNetworkAccess: true
       egress: loadBalancer
@@ -91,6 +92,9 @@ resolved:
       sources:
         - url: https://argoproj.github.io/argo-helm
           type: helm
+      hostnames:
+        - name: argocd
+          namespace: argocd
     - name: certificates
       version: 0.1.0
       gitops: modules/certificates/gitops
@@ -115,6 +119,14 @@ resolved:
       sources:
         - url: ghcr.io/akuity/kargo-charts
           type: oci
+    - name: edge-gateway
+      version: 0.1.0
+      gitops: modules/edge-gateway/gitops
+      sources:
+        - url: docker.io/envoyproxy
+          type: oci
+        - url: https://kubernetes-sigs.github.io/external-dns
+          type: helm
     - name: governance
       version: 0.1.0
     - name: policy-kyverno

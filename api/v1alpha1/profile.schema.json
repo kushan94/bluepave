@@ -329,6 +329,7 @@
           }
         },
         "ingress": {
+          "description": "The public entry point (edge-gateway module): inCluster = Envoy Gateway behind the AKS load balancer. agc (Application Gateway for Containers) is reserved and not implemented yet.",
           "enum": [
             "inCluster",
             "agc"

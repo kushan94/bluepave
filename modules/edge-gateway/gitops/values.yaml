@@ -1,0 +1,26 @@
+# Set by the root chart (platform/chart) for every module: the module context and this module's
+# settings (ADR-0002). The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  domain: dev.example.com
+  tenantId: ""
+  subscriptionId: ""
+  modules: []
+  discovered: {}
+  scheduling: { tolerations: [], highAvailability: true }
+  prefix: ex
+  profile: { ingress: inCluster }
+  gateway: { name: public, namespace: gateway }
+  platformHosts: []
+settings: {}
+
+# The upstream charts. Bumped by module releases, after the end-to-end test.
+upstream:
+  envoyGateway:
+    repoURL: docker.io/envoyproxy
+    chart: gateway-helm
+    version: v1.9.2
+  externalDns:
+    repoURL: https://kubernetes-sigs.github.io/external-dns
+    chart: external-dns
+    version: 1.23.0

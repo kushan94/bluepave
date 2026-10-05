@@ -1,0 +1,33 @@
+{{- /*
+With edge-gateway enabled: Argo CD's UI and API at https://argocd.<env>.<domain>, through the
+Gateway's https-argocd listener (only the argocd namespace may attach to it). TLS ends at the
+Gateway. Access still requires Entra ID; the local admin is disabled.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+{{- if has "edge-gateway" $ctx.modules }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    # The CRD comes with the edge-gateway module, which may sync after this one.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+    - name: {{ $ctx.gateway.name }}
+      namespace: {{ $ctx.gateway.namespace }}
+      sectionName: https-argocd
+  hostnames:
+    - {{ printf "argocd.%s" $ctx.domain | quote }}
+  rules:
+    - filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+      backendRefs:
+        - name: argo-cd-argocd-server
+          port: 80
+{{- end }}

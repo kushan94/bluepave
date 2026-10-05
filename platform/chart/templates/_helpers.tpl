@@ -45,6 +45,18 @@ modules:
   {{- range .Values.resolved.modules }}
   - {{ .name | quote }}
   {{- end }}
+# The public Gateway (edge-gateway module) and the platform hostnames enabled modules serve
+# (module.yaml spec.hostnames): a module routes <name>.<domain> through listener https-<name>.
+gateway:
+  name: public
+  namespace: gateway
+platformHosts:
+  {{- range .Values.resolved.modules }}
+  {{- $module := .name }}
+  {{- range .hostnames }}
+  - { name: {{ .name | quote }}, namespace: {{ .namespace | quote }}, module: {{ $module | quote }} }
+  {{- end }}
+  {{- end }}
 # This environment's discovered IDs (.bluepave/discovered.yaml environments.<env>).
 discovered:
   {{- toYaml (($discovered.environments | default dict) | dig $env dict) | nindent 2 }}
