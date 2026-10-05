@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bluepave.dev/schemas/v1alpha1/module.schema.json",
+  "title": "bluepave module manifest (modules/<name>/module.yaml)",
+  "description": "A module is one capability. It declares what it needs, what it contributes, and how it's tested (ADR-0001).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
+    "kind": { "const": "Module" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+        "description": { "type": "string", "minLength": 10, "maxLength": 200 }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "layers", "tests"],
+      "properties": {
+        "version": {
+          "description": "SemVer of the module itself.",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$"
+        },
+        "requires": {
+          "description": "Modules that must be enabled for this one to work.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+          "uniqueItems": true
+        },
+        "outputs": {
+          "description": "Values this module publishes for others (e.g. aks: oidcIssuerUrl).",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]{1,60}$" },
+          "uniqueItems": true
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema"],
+          "properties": {
+            "schema": { "description": "JSON Schema of this module's settings, relative to the module folder.", "type": "string" }
+          }
+        },
+        "layers": {
+          "description": "What the module contributes. Paths are relative to the module folder; docs is required.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["docs"],
+          "minProperties": 2,
+          "properties": {
+            "infra": { "description": "Bicep entry point: one deployment stack.", "type": "string", "pattern": "\\.bicep$" },
+            "gitops": { "description": "Folder with a Helm chart or an add-on definition.", "type": "string" },
+            "policies": { "description": "Folder with admission policies and their tests.", "type": "string" },
+            "portal": { "description": "Folder with portal templates and catalog entries.", "type": "string" },
+            "docs": { "description": "Folder with the module's documentation.", "type": "string" }
+          }
+        },
+        "tests": { "description": "Folder with the module's tests, run in CI.", "type": "string" }
+      }
+    }
+  }
+}

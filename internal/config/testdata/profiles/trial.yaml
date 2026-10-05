@@ -1,0 +1,25 @@
+# trial: learning and demos on an Azure Free Trial (4 regular + 3 Spot vCPUs per region).
+# Proven in the reference instance (Skyforge dev). Costs roughly US$3-5 a day; stop it at night.
+apiVersion: bluepave.dev/v1alpha1
+kind: Profile
+metadata:
+  name: trial
+spec:
+  cluster:
+    tier: Free
+    systemPool: { vmSize: Standard_D2ds_v5, count: 1 }
+    # Apps on Spot (separate quota); one regular node for the portal and admission control.
+    userPools:
+      - { name: spot, vmSize: Standard_D2ds_v5, spot: true, min: 0, max: 1 }
+      - { name: apps, vmSize: Standard_D2ds_v5, spot: false, min: 1, max: 1 }
+    # The system pool's upgrade surge doesn't fit the quota: upgrades run by workflow.
+    autoUpgrade: false
+  network:
+    egress: loadBalancer
+    privateEndpoints: false
+  registry: { sku: Standard }
+  data: { postgres: { sku: Standard_B1ms, highAvailability: false }, cache: inCluster }
+  modules:
+    # Modules this profile turns on by default. Filled in as modules are ported (design doc, section 8);
+    # a profile only lists modules that exist.
+    defaultsEnabled: []

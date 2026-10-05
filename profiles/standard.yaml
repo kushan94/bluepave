@@ -1,0 +1,21 @@
+# standard: a team's dev/test platform. Not yet proven end to end: see docs/design/configuration.md.
+apiVersion: bluepave.dev/v1alpha1
+kind: Profile
+metadata:
+  name: standard
+spec:
+  cluster:
+    tier: Standard
+    systemPool: { vmSize: Standard_D2ds_v5, count: 3 }
+    userPools:
+      - { name: apps, vmSize: Standard_D4ds_v5, spot: false, min: 2, max: 5 }
+    autoUpgrade: true
+  network:
+    egress: natGateway
+    privateEndpoints: false
+  registry: { sku: Standard }
+  data: { postgres: { sku: Standard_D2ds_v5, highAvailability: false }, cache: inCluster }
+  modules:
+    # Modules this profile turns on by default. Filled in as modules are ported (design doc, section 8);
+    # a profile only lists modules that exist.
+    defaultsEnabled: []

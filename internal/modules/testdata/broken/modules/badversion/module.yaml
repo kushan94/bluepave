@@ -1,0 +1,4 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata: {name: badversion, description: "invalid version fixture"}
+spec: {version: one, layers: {docs: docs, gitops: docs}, tests: tests}

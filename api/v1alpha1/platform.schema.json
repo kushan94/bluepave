@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bluepave.dev/schemas/v1alpha1/platform.schema.json",
+  "title": "bluepave platform configuration (bluepave.yaml)",
+  "description": "Everything an adopter decides about their platform. Nothing here is secret; discovered IDs live in .bluepave/discovered.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
+    "kind": { "const": "Platform" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The platform's name, shown in the portal and used in descriptions.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,30}[a-z0-9]$"
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "profile", "azure", "dns", "github", "admins"],
+      "properties": {
+        "prefix": {
+          "description": "Short prefix for every Azure resource name (rg-<prefix>-<env>-<region>-<role>). Lowercase letters and digits, 2-5 characters, so derived names stay within Azure limits.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{1,4}$"
+        },
+        "profile": {
+          "description": "Preset for sizing and features: trial (fits an Azure Free Trial), standard, production.",
+          "enum": ["trial", "standard", "production"]
+        },
+        "azure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["region"],
+          "properties": {
+            "region": {
+              "description": "Azure region name, e.g. eastasia, westeurope.",
+              "type": "string",
+              "pattern": "^[a-z]+[a-z0-9]*$"
+            }
+          }
+        },
+        "environments": {
+          "description": "Clusters to create. dev hosts the dev and staging stages; prod is its own cluster.",
+          "type": "array",
+          "items": { "enum": ["dev", "prod"] },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": ["dev"]
+        },
+        "dns": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["domain"],
+          "properties": {
+            "domain": {
+              "description": "A domain you own. Apps get <app>.<env>.<domain>; the zone is created in Azure DNS and you delegate it at your registrar.",
+              "type": "string",
+              "pattern": "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$"
+            }
+          }
+        },
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "platformRepo"],
+          "properties": {
+            "owner": {
+              "description": "GitHub user or organisation owning the platform and app repositories.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9](-?[A-Za-z0-9]){0,38}$"
+            },
+            "platformRepo": {
+              "description": "This repository's name (created from the bluepave template).",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,100}$"
+            },
+            "appName": {
+              "description": "Name of the platform's GitHub App, created by `bluepave up`. Default: <owner>-<metadata.name>.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,33}$"
+            }
+          }
+        },
+        "admins": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group"],
+          "properties": {
+            "group": {
+              "description": "Entra ID group of platform admins: cluster admins, portal users, Kargo promoters. Created if missing.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        },
+        "modules": {
+          "description": "Turn modules on or off, and override their settings. Unlisted modules use the profile's default.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "settings": { "type": "object" }
+            }
+          }
+        },
+        "moduleSources": {
+          "description": "Extra module repositories (third-party modules), loaded after the built-in modules.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["url", "ref"],
+            "properties": {
+              "url": { "type": "string", "pattern": "^https://" },
+              "ref": { "description": "A tag or commit, never a branch.", "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

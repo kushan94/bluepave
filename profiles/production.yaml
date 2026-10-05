@@ -1,0 +1,23 @@
+# production: private cluster, filtered egress, private endpoints, zone redundancy.
+# Not yet proven end to end: see docs/design/configuration.md.
+apiVersion: bluepave.dev/v1alpha1
+kind: Profile
+metadata:
+  name: production
+spec:
+  cluster:
+    tier: Standard
+    private: true
+    systemPool: { vmSize: Standard_D2ds_v5, count: 3 }
+    userPools:
+      - { name: apps, vmSize: Standard_D4ds_v5, spot: false, min: 3, max: 6 }
+    autoUpgrade: true
+  network:
+    egress: firewall
+    privateEndpoints: true
+  registry: { sku: Premium }
+  data: { postgres: { sku: Standard_D2ds_v5, highAvailability: true }, cache: azureManagedRedis }
+  modules:
+    # Modules this profile turns on by default. Filled in as modules are ported (design doc, section 8);
+    # a profile only lists modules that exist.
+    defaultsEnabled: []

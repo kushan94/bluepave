@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bluepave.dev/schemas/v1alpha1/profile.schema.json",
+  "title": "bluepave profile (profiles/<name>.yaml)",
+  "description": "A preset of sizing and default modules (ADR-0001).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
+    "kind": { "const": "Profile" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": { "name": { "enum": ["trial", "standard", "production"] } }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cluster", "network", "registry", "data", "modules"],
+      "properties": {
+        "cluster": { "type": "object" },
+        "network": { "type": "object" },
+        "registry": { "type": "object" },
+        "data": { "type": "object" },
+        "modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["defaultsEnabled"],
+          "properties": {
+            "defaultsEnabled": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

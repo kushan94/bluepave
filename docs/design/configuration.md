@@ -125,10 +125,17 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 6. **End-to-end test:** a fresh subscription → `up` → examples → `down`, nightly.
 7. **Release:** license, SECURITY.md, CONTRIBUTING, v0.1.0, make the repository public.
 
+### Modules to port (target set)
+
+`aks`, `registry`, `keyvault`, `dns`, `network`, `data-postgres`, `gitops-argocd`, `delivery-kargo`,
+`rollouts`, `policy-kyverno`, `runtime-falco`, `edge-gateway`, `certificates`, `observability`,
+`self-service-appstorage`, `portal`. Each is added to the profiles that should enable it by default
+when it lands.
+
 ## 9. Open decisions
 
-- **License:** Apache-2.0 is the usual choice for platform tooling (permissive, patent grant).
-- **Distribution model:**
-  - a GitHub template repository (fork and configure; simplest, chosen first); or
-  - a product repository plus instance repositories pinned to releases (cleaner upgrades, more
-    moving parts).
+Decided:
+- **License:** Apache-2.0.
+- **Distribution:** a GitHub template repository first; product and instance repositories later
+  (ADR-0001).
+- **Framework structure:** modules behind a versioned config API (ADR-0001).

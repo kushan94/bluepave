@@ -39,6 +39,21 @@ promoted, running app on AKS.**
 | `standard` | A team's dev/test platform | tbd |
 | `production` | Private cluster, Azure Firewall, private endpoints, zone redundancy | tbd |
 
+## Getting started (in progress)
+
+```bash
+go run ./cmd/bluepave validate -f examples/bluepave.yaml   # check a configuration
+go run ./cmd/bluepave modules                             # list available modules
+```
+
+`bluepave up` and the modules arrive in the next steps
+([docs/design/configuration.md](docs/design/configuration.md), section 8).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the architecture in
+[docs/adr/0001-framework-architecture.md](docs/adr/0001-framework-architecture.md).
+
 ## License
 
-To be decided before the first release.
+[Apache License 2.0](LICENSE).

@@ -1,0 +1,44 @@
+name: ci
+
+# Every change: the CLI builds and its tests pass, every profile and example validates against
+# the config API, and every module manifest is valid (ADR-0001, quality bar).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: CLI and config API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Format, vet, test
+        run: |
+          unformatted=$(gofmt -l .)
+          [[ -z $unformatted ]] || { echo "::error::not gofmt-ed: $unformatted"; exit 1; }
+          go vet ./...
+          go test -race -count=1 ./...
+
+      - name: Build the CLI
+        run: go build -o "$RUNNER_TEMP/bluepave" ./cmd/bluepave
+
+      - name: Example and every profile validate
+        run: |
+          "$RUNNER_TEMP/bluepave" validate -f examples/bluepave.yaml
+          for p in profiles/*.yaml; do
+            name=$(basename "$p" .yaml)
+            sed "s/profile: trial/profile: $name/" examples/bluepave.yaml > "$RUNNER_TEMP/$name.yaml"
+            "$RUNNER_TEMP/bluepave" validate -f "$RUNNER_TEMP/$name.yaml"
+          done
+
+      - name: Every module manifest is valid
+        run: '"$RUNNER_TEMP/bluepave" modules'

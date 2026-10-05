@@ -1,0 +1,4 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata: {name: missingfile, description: "points at a missing infra file"}
+spec: {version: 0.1.0, layers: {docs: docs, infra: nope.bicep}, tests: tests}
