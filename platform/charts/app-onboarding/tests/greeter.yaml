@@ -1,0 +1,18 @@
+# Test fixture: an app in its own repository with two stages on dev and one on prod.
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata:
+  name: greeter
+  description: Greets visitors
+spec:
+  stages:
+    - { name: dev }
+    - { name: staging }
+    - { name: prod, environment: prod }
+  source:
+    repoURL: https://github.com/acme/greeter
+    path: deploy/chart
+  delivery:
+    images: [api, worker]
+  namespaceLabels:
+    example.com/team: greeters

@@ -1,0 +1,37 @@
+{{- $name := .Values.metadata.name }}
+{{- $src := .Values.spec.source }}
+{{- range (include "onboarding.stages" . | fromYaml).stages }}
+---
+# Stage {{ .name }}: Kargo's {{ .name }} Stage updates its values file and syncs it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ include "onboarding.namespace" (dict "app" $name "stage" .) }}
+  namespace: argocd
+  annotations:
+    kargo.akuity.io/authorized-stage: kargo-{{ $name }}:{{ .name }}
+spec:
+  project: {{ $name }}
+  source:
+    repoURL: {{ $src.repoURL | quote }}
+    targetRevision: {{ $src.targetRevision | default "main" | quote }}
+    path: {{ $src.path | quote }}
+    helm:
+      releaseName: {{ $name }}
+      valueFiles:
+        - ../values-{{ .name }}.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ include "onboarding.namespace" (dict "app" $name "stage" .) }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # The namespace comes from the onboarding (templates/namespaces.yaml); retry until it exists.
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+{{- end }}

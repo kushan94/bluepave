@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bluepave-app-onboarding
+description: One app's onboarding - namespaces, Argo CD project, stage Applications, quota and Kargo pipeline (api/v1alpha1/app.schema.json)
+type: application
+version: 0.1.0

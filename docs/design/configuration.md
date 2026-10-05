@@ -117,6 +117,8 @@ The Skyforge dev environment *is* the `trial` profile, including its constraints
 
 1. **Configuration:** `bluepave.yaml` schema and validation; Bicep reads it; profiles.
 2. **GitOps chart:** `platform/chart` and the module context (done, ADR-0002).
+2b. **App onboarding:** `apps/<name>.yaml` (`api/v1alpha1/app.schema.json`), the
+    `platform/charts/app-onboarding` chart and the root chart's `apps` ApplicationSet (done).
 3. **CLI:** preflight, up, status, down, folding in the seven Skyforge bootstrap scripts.
 4. **Generic portal image** with mounted configuration.
 5. **Examples and docs:** getting started, runbooks, troubleshooting.

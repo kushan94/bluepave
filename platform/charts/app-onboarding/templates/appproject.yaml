@@ -1,0 +1,32 @@
+{{- $name := .Values.metadata.name }}
+{{- $stages := (include "onboarding.stages" . | fromYaml).stages }}
+{{- if $stages }}
+# The app team's Argo CD project: only its own stage namespaces, no cluster-scoped kinds (the
+# platform creates the namespaces), and only the app's repository.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $name }}
+  namespace: argocd
+spec:
+  description: {{ .Values.metadata.description | default $name | quote }}
+  sourceRepos:
+    - {{ .Values.spec.source.repoURL | quote }}
+  destinations:
+    {{- range $stages }}
+    - server: https://kubernetes.default.svc
+      namespace: {{ include "onboarding.namespace" (dict "app" $name "stage" .) }}
+    {{- end }}
+  clusterResourceWhitelist: []
+  namespaceResourceBlacklist:
+    # Quotas and limits are the platform's (templates/namespaces.yaml).
+    - { group: "", kind: ResourceQuota }
+    - { group: "", kind: LimitRange }
+    # Azure resources only through the platform APIs (ADR-0003): raw Azure Service Operator objects
+    # would let a team create anything ASO can, e.g. a storage account with public blobs.
+    - { group: "*.azure.com", kind: "*" }
+    - { group: kro.run, kind: "*" }
+    # Secrets from Key Vault only through the platform: an app's ExternalSecret could name the
+    # cluster-wide store and read any platform secret (the GitHub App key).
+    - { group: external-secrets.io, kind: "*" }
+{{- end }}

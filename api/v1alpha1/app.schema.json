@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bluepave.dev/schemas/v1alpha1/app.schema.json",
+  "title": "bluepave app onboarding file (apps/<name>.yaml)",
+  "description": "One app on the platform: its stages, where its chart lives, and how releases are delivered. The platform creates the namespaces, the app's Argo CD project, one Application per stage and the Kargo pipeline from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "bluepave.dev/v1alpha1" },
+    "kind": { "const": "App" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The app's name: images are <registry>/<name>-<image>, namespaces <name>-<stage>, the Kargo project kargo-<name>. Must match the file name.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,28}[a-z0-9]$"
+        },
+        "description": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stages", "source"],
+      "properties": {
+        "stages": {
+          "description": "Stages in promotion order. Each gets a namespace <name>-<stage> and an Argo CD Application rendering the chart with values-<stage>.yaml next to the chart's folder.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,14}$" },
+              "environment": {
+                "description": "The cluster this stage runs on (bluepave.yaml spec.environments). Default: dev. Promotion across clusters isn't supported yet: each cluster's pipeline covers its own stages.",
+                "enum": ["dev", "prod"]
+              }
+            }
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repoURL", "path"],
+          "properties": {
+            "repoURL": {
+              "description": "The app's repository, https://github.com/<owner>/<repo>. Argo CD and Kargo reach it through the platform's GitHub App, so it must belong to the platform's GitHub owner.",
+              "type": "string",
+              "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$"
+            },
+            "path": {
+              "description": "The app's Helm chart in that repository. Stage values live next to the chart's folder: <path>/../values-<stage>.yaml.",
+              "type": "string",
+              "minLength": 1
+            },
+            "targetRevision": { "type": "string", "default": "main" }
+          }
+        },
+        "delivery": {
+          "description": "How releases reach the stages. Default: generated (a Kargo pipeline from images).",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "images": {
+              "description": "Image names the golden path builds for this app: <registry>/<name>-<image>. The generated pipeline creates Freight when all of them come from the same commit.",
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,30}$" },
+              "uniqueItems": true
+            }
+          }
+        },
+        "namespaceLabels": {
+          "description": "Extra labels on the app's namespaces. Keys under platform.bluepave.dev/ are reserved.",
+          "type": "object",
+          "propertyNames": { "not": { "pattern": "^platform\\.bluepave\\.dev/" } },
+          "additionalProperties": { "type": "string", "maxLength": 63 }
+        }
+      }
+    }
+  }
+}

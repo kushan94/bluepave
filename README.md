@@ -43,7 +43,7 @@ promoted, running app on AKS.**
 ## Getting started (in progress)
 
 ```bash
-go run ./cmd/bluepave validate -f bluepave.yaml  # check a configuration and module settings
+go run ./cmd/bluepave validate -f bluepave.yaml  # check the configuration, module settings and apps/*.yaml
 go run ./cmd/bluepave modules                    # list available modules
 go run ./cmd/bluepave render                     # resolve modules for GitOps (.bluepave/resolved.yaml)
 ```
