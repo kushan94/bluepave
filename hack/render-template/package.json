@@ -1,0 +1,9 @@
+{
+  "name": "bluepave-render-template",
+  "private": true,
+  "description": "Renders a portal template's skeleton the way Backstage's fetch:template does (hack/test-templates.sh).",
+  "type": "module",
+  "dependencies": {
+    "nunjucks": "3.2.4"
+  }
+}

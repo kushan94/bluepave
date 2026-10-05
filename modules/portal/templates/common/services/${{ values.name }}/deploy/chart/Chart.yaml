@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ${{ values.name }}
+description: ${{ values.description | dump }}
+type: application
+version: 0.1.0

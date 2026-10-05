@@ -40,6 +40,10 @@ spec:
     images: [api]                                # built by the golden path as <name>-api
 ```
 
+**From the portal:** the templates "New Go service" and "New Python service" open one pull
+request that adds the service to this repository (`services/<name>/`), its onboarding file and
+its workflow ([modules/portal](../modules/portal/docs/README.md#templates)).
+
 ## Building images: the golden path
 
 The app's repository calls the platform's reusable workflow, which runs the checks, builds,

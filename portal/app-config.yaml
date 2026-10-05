@@ -94,13 +94,17 @@ catalog:
     pullRequestBranchName: backstage-integration
   rules:
     - allow: [Component, System, API, Resource, Location, Domain]
+    # Teams, people and templates only from this checkout. A location's own rules would cover only
+    # the file it names, not the files its Locations point to, so local files are trusted by
+    # pattern. (The hosted portal trusts the platform repository the same way: modules/portal.)
+    - allow: [Group, User, Template]
+      locations:
+        - { type: file, pattern: '/**' }
   locations:
-    # The repository's own catalog: platform, apps, teams and templates. Paths are relative to
+    # The repository's own catalog: platform, teams, templates and services. Paths are relative to
     # packages/backend, where the backend runs.
     - type: file
       target: ../../../catalog-info.yaml
-      rules:
-        - allow: [Component, System, API, Resource, Location, Domain, Group, User, Template]
 
 kubernetes:
   # Run `kubectl proxy` (port 8001) next to Backstage. The proxy signs each request with your own

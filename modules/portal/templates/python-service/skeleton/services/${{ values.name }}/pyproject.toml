@@ -1,0 +1,21 @@
+[project]
+name = "${{ values.name }}"
+description = ${{ values.description | dump }}
+version = "0.1.0"
+requires-python = ">=3.14"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, isort, bugbear, bandit (security), pyupgrade
+select = ["F", "E", "W", "I", "B", "S", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"] # assert is how pytest works
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["error"] # a deprecation fails the build instead of rotting

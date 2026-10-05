@@ -1,0 +1,11 @@
+# The portal's software templates (modules/portal/templates), read by the portal (the module adds
+# this file to its catalog).
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: portal-templates
+  description: Templates for new services
+spec:
+  targets:
+    - ./go-service/template.yaml
+    - ./python-service/template.yaml

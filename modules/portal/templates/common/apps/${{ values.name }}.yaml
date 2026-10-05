@@ -1,0 +1,17 @@
+# Onboards ${{ values.name }} (services/${{ values.name }}/), created from a portal template:
+# namespaces ${{ values.name }}-dev and ${{ values.name }}-staging, its Argo CD project, and a Kargo
+# pipeline that deploys each new image to dev and lets admins promote it to staging.
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description | dump }}
+spec:
+  stages:
+    - { name: dev, environment: ${{ values.environment }} }
+    - { name: staging, environment: ${{ values.environment }} }
+  source:
+    repoURL: https://github.com/${{ values.githubOwner }}/${{ values.platformRepo }}
+    path: services/${{ values.name }}/deploy/chart
+  delivery:
+    images: [${{ values.component }}]

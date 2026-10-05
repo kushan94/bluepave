@@ -16,13 +16,21 @@
 {{- end }}
 {{- $tools = append $tools (dict "url" $repo "label" "Platform repository" "icon" "github") }}
 
-{{- $locations := list (dict
-  "type" "url"
-  "target" (printf "%s/blob/%s/catalog-info.yaml" $repo $ctx.gitops.revision)
-  "rules" (list (dict "allow" (list "Component" "System" "API" "Resource" "Location" "Domain" "Group" "User" "Template")))) }}
+{{- /* What the catalog reads: the platform repository's catalog (its teams, the platform, the
+portal's templates and their platform settings, services created from them), and extra locations
+from the module's settings. Backstage applies a location's rules only to the file it names, not to
+files a Location in it points to, so the platform repository is trusted by pattern: everything in
+it went through review. */ -}}
+{{- $locations := list
+  (dict "type" "url" "target" (printf "%s/blob/%s/catalog-info.yaml" $repo $ctx.gitops.revision)) }}
 {{- range .Values.settings.catalogLocations }}
 {{- $locations = append $locations (dict "type" "url" "target" .) }}
 {{- end }}
+{{- $rules := list
+  (dict "allow" (list "Component" "System" "API" "Resource" "Location" "Domain"))
+  (dict
+    "allow" (list "Group" "User" "Template")
+    "locations" (list (dict "type" "url" "pattern" (printf "%s/blob/%s/**" $repo $ctx.gitops.revision)))) }}
 
 {{- $config := dict
   "app" (dict
@@ -49,7 +57,7 @@
       "privateKey" "${GITHUB_APP_PRIVATE_KEY}"
       "webhookSecret" "unused"
       "allowedInstallationOwners" (list $ctx.github.owner))))))
-  "catalog" (dict "locations" $locations)
+  "catalog" (dict "locations" $locations "rules" $rules)
   "kubernetes" (dict "clusterLocatorMethods" (list (dict
     "type" "config"
     "clusters" (list (dict

@@ -185,18 +185,23 @@ func renderCmd(args []string, stdout, stderr io.Writer) int {
 	if path == "" {
 		path = filepath.Join(pl.root, render.Path)
 	}
+	// The platform-settings catalog entity goes next to the resolved file.
+	settings := filepath.Join(filepath.Dir(path), render.SettingsFile)
 	r, err := render.Build(pl.root, pl.config, pl.ordered)
 	if err == nil {
 		err = r.Write(path, *check)
+	}
+	if err == nil {
+		err = render.WriteSettings(pl.config, settings, *check)
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
 	if *check {
-		fmt.Fprintf(stdout, "%s is up to date\n", path)
+		fmt.Fprintf(stdout, "%s and %s are up to date\n", path, settings)
 	} else {
-		fmt.Fprintf(stdout, "wrote %s (%d modules)\n", path, len(r.Modules))
+		fmt.Fprintf(stdout, "wrote %s (%d modules) and %s\n", path, len(r.Modules), settings)
 	}
 	return 0
 }

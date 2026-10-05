@@ -1,0 +1,96 @@
+# The service account exists from the start, so platform APIs (AppStorage) can trust it.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${{ values.component }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ values.component }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "app.selector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.port }}
+      targetPort: http
+{{- with .Values.images.${{ values.component }} }}
+{{- if and .repository .digest }}
+---
+# Pinned by digest: exactly what the golden path scanned and signed (the platform's admission
+# policy checks the signature).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{ values.component }}
+  labels:
+    {{- include "app.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $.Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "app.selector" $ | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "app.selector" $ | nindent 8 }}
+        {{- if $.Values.storage.enabled }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: ${{ values.component }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # Numeric: Pod Security "restricted" checks runAsNonRoot against a UID.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ${{ values.component }}
+          image: {{ .repository }}@{{ .digest }}
+          ports:
+            - name: http
+              containerPort: {{ $.Values.port }}
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: PORT
+              value: {{ $.Values.port | quote }}
+            - name: VERSION
+              value: {{ .tag | quote }}
+          {{- if $.Values.storage.enabled }}
+          # AZURE_STORAGE_* from the ConfigMap the AppStorage API writes. Optional: the pod starts
+          # while the storage is still being created (restart it once the ConfigMap exists).
+          envFrom:
+            - configMapRef:
+                name: storage-storage
+                optional: true
+          {{- end }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+{{- end }}
+{{- end }}

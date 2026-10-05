@@ -1,0 +1,13 @@
+{{- if .Values.storage.enabled }}
+# Blob storage from the platform (self-service module): a keyless account, a container, and an
+# identity trusted by the service account. Connection details: ConfigMap storage-storage.
+apiVersion: platform.bluepave.dev/v1alpha1
+kind: AppStorage
+metadata:
+  name: storage
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  serviceAccountName: ${{ values.component }}
+  container: data
+{{- end }}
