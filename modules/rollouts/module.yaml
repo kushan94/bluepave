@@ -1,0 +1,14 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: Module
+metadata:
+  name: rollouts
+  description: Argo Rollouts for canary and blue-green releases with automatic analysis and rollback
+spec:
+  version: 0.1.0
+  requires: [aks, gitops-argocd]
+  sources:
+    - { url: https://argoproj.github.io/argo-helm, type: helm }
+  layers:
+    gitops: gitops
+    docs: docs
+  tests: tests

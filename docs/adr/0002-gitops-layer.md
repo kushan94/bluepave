@@ -69,6 +69,7 @@ removed:
 | `modules` | Names of the enabled modules, to integrate with another module without reading its files |
 | `discovered` | This environment's IDs: `discovered.environments.<env>` |
 | `scheduling.tolerations` | Tolerations for platform pods (Spot, when the profile has Spot pools) |
+| `scheduling.highAvailability` | Whether platform controllers run more than one replica: false on a cluster tier with no uptime SLA (`Free`, the trial profile) |
 
 ### 4. Discovered IDs
 

@@ -1,0 +1,15 @@
+# Base values for the argo-rollouts chart. templates/argo-rollouts.yaml adds scheduling and the
+# replica count.
+
+installCRDs: true
+# Uninstalling the chart must not delete every Rollout (and so every app's pods) with the CRDs.
+keepCRDs: true
+
+controller:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+# The UI is the kubectl plugin or Argo CD's Rollout view; no extra dashboard to expose.
+dashboard:
+  enabled: false
