@@ -60,6 +60,15 @@
           },
           "uniqueItems": true
         },
+        "after": {
+          "description": "Modules this one integrates with when they're enabled, without requiring them: they're deployed first (e.g. self-service after data-postgres, for AppDatabase).",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,40}$"
+          },
+          "uniqueItems": true
+        },
         "outputs": {
           "description": "Values this module publishes for others (e.g. aks: oidcIssuerUrl).",
           "type": "array",

@@ -34,12 +34,13 @@ names() { yq -r "$2 | .metadata.name" "$1" | grep -v '^---$' || true; }
 
 status=0
 
-# Platform APIs that run pods in app namespaces (kro ResourceGraphDefinitions) may only use images
-# their module declares in module.yaml spec.appImages: the only ones admission allows there.
+# Platform APIs that run pods in app namespaces (kro ResourceGraphDefinitions: resources in the
+# instance's namespace) may only use images their module declares in module.yaml spec.appImages,
+# the only ones admission allows there. Pods in platform namespaces aren't limited this way.
 for rgd in modules/*/gitops/files/rgd-*.yaml; do
   [[ -f $rgd ]] || continue
   manifest="$(dirname "$(dirname "$(dirname "$rgd")")")/module.yaml"
-  for image in $(yq -r '.. | select(has("image")) | .image' "$rgd" 2>/dev/null | grep -v '^---$' || true); do
+  for image in $(yq -r '.spec.resources[].template | select(.metadata.namespace == "${schema.metadata.namespace}") | .. | select(has("image")) | .image' "$rgd" 2>/dev/null | grep -v '^---$' || true); do
     if ! yq -e ".spec.appImages[] | select(. == \"$image\")" "$manifest" >/dev/null 2>&1; then
       echo "::error file=$rgd::image $image isn't declared in $manifest spec.appImages"; status=1
     fi

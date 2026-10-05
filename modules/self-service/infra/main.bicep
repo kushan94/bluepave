@@ -7,12 +7,18 @@
 //     data roles the APIs use, to service principals only (it can't make anyone Owner or grant
 //     itself more)
 // Granting RBAC Administrator needs Owner or User Access Administrator on the subscription.
+//
+// With data-postgres on (AppDatabase): an identity that is an Entra administrator of the
+// PostgreSQL server, federated to the service account the AppDatabase jobs run as
+// (appdatabase-system/appdatabase-admin). The jobs create each app's database and role; nothing
+// else runs as it.
 targetScope = 'subscription'
 
 import {
   envName
   federatedCredential
   location
+  moduleEnabled
   resourceNames
   tagsFor
   workloadIdentityName
@@ -23,6 +29,8 @@ param environmentName envName
 
 var names = resourceNames(environmentName, subscription().subscriptionId)
 var tags = tagsFor(environmentName)
+var appDatabase = moduleEnabled('data-postgres')
+var postgresAdminName = workloadIdentityName(environmentName, 'pgadmin')
 
 // Data roles the platform APIs may grant to app identities.
 var grantableRoles = [
@@ -71,6 +79,34 @@ module appsRoles 'apps-roles.bicep' = {
   }
 }
 
+module postgresAdmin 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = if (appDatabase) {
+  scope: resourceGroup(names.rgAks)
+  params: {
+    name: postgresAdminName
+    location: location
+    tags: tags
+    federatedIdentityCredentials: [
+      federatedCredential(
+        cluster.properties.oidcIssuerProfile.issuerURL,
+        'appdatabase-system',
+        'appdatabase-admin'
+      )
+    ]
+  }
+}
+
+module postgresAdminRole 'postgres-admin.bicep' = if (appDatabase) {
+  scope: resourceGroup(names.rgData)
+  params: {
+    serverName: names.postgres
+    principalId: postgresAdmin!.outputs.principalId
+    principalName: postgresAdminName
+  }
+}
+
 output clientId string = identity.outputs.clientId
 output appsResourceGroupId string = appsRg.id
 output oidcIssuerUrl string = cluster.properties.oidcIssuerProfile.issuerURL
+// AppDatabase (empty without data-postgres): the admin identity's client ID and its PostgreSQL role.
+output postgresAdminClientId string = appDatabase ? postgresAdmin!.outputs.clientId : ''
+output postgresAdminName string = appDatabase ? postgresAdminName : ''

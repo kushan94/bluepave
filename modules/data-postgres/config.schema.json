@@ -13,7 +13,7 @@
       "type": "boolean"
     },
     "databases": {
-      "description": "Databases to create on the server (UTF-8). Default: none; apps' databases are listed here until app onboarding creates them.",
+      "description": "Databases to create on the server (UTF-8), e.g. for the platform's own use. Default: none. Apps get theirs with the AppDatabase API (self-service).",
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
       "uniqueItems": true

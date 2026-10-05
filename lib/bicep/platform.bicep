@@ -196,3 +196,7 @@ func privateEndpoint(subnetId string, dnsZoneId string, tags object) object => {
 @export()
 @description('A module\'s settings from bluepave.yaml (spec.modules.<name>.settings), or {}.')
 func moduleSettings(name string) object => platform.spec.?modules[?name].?settings ?? {}
+
+@export()
+@description('Whether a module is on: bluepave.yaml spec.modules.<name>.enabled, else the profile\'s defaults. For optional integrations with another module (module.yaml spec.after).')
+func moduleEnabled(name string) bool => platform.spec.?modules[?name].?enabled ?? contains(profiles[platform.spec.profile].modules.defaultsEnabled, name)

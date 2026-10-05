@@ -1,0 +1,22 @@
+{{- /*
+Where AppDatabase's jobs run: a platform namespace (never an app's), as a service account trusted by
+the PostgreSQL admin identity (infra/main.bicep). Only kro creates pods here.
+*/ -}}
+{{- $ids := include "ss.ids" . | fromYaml }}
+{{- if and (eq (include "ss.appDatabase" .) "true") $ids.postgresAdminClientId }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appdatabase-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: appdatabase-admin
+  namespace: appdatabase-system
+  annotations:
+    azure.workload.identity/client-id: {{ $ids.postgresAdminClientId | quote }}
+automountServiceAccountToken: false
+{{- end }}

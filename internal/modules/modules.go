@@ -26,6 +26,7 @@ type Module struct {
 		Version    string            `yaml:"version"`
 		InfraScope string            `yaml:"infraScope"`
 		Requires   []string          `yaml:"requires"`
+		After      []string          `yaml:"after"`
 		Outputs    []string          `yaml:"outputs"`
 		Sources    []Source          `yaml:"sources"`
 		Hostnames  []Hostname        `yaml:"hostnames"`
@@ -159,8 +160,13 @@ func Resolve(available map[string]*Module, enabled []string) ([]*Module, error) 
 	return order(available, enabled)
 }
 
-// order is a topological sort; a cycle is an error.
+// order is a topological sort over requires, and over after where those modules are enabled; a
+// cycle is an error.
 func order(available map[string]*Module, enabled []string) ([]*Module, error) {
+	on := map[string]bool{}
+	for _, n := range enabled {
+		on[n] = true
+	}
 	const (
 		unvisited = iota
 		visiting
@@ -178,6 +184,11 @@ func order(available map[string]*Module, enabled []string) ([]*Module, error) {
 		}
 		state[n] = visiting
 		reqs := append([]string(nil), available[n].Spec.Requires...)
+		for _, a := range available[n].Spec.After {
+			if on[a] {
+				reqs = append(reqs, a)
+			}
+		}
 		sort.Strings(reqs)
 		for _, r := range reqs {
 			if err := visit(r, append(path, n)); err != nil {
