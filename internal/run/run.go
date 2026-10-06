@@ -10,6 +10,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // Runner runs one command and returns its standard output.
@@ -34,6 +35,9 @@ func (e Exec) Run(ctx context.Context, name string, args ...string) ([]byte, err
 // RunIn implements Runner.
 func (e Exec) RunIn(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	// On cancellation only the process itself is killed: a child it started (az is a shell script
+	// running Python) keeps the output pipes open, and Run would wait for it however long it takes.
+	cmd.WaitDelay = 10 * time.Second
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
