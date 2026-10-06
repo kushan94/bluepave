@@ -152,6 +152,10 @@ spec:
           name: ${schema.metadata.name}
           namespace: ${schema.metadata.namespace}
         spec:
+          # A GUID derived from the platform's name seed. ASO's default derives it from the
+          # namespace and name alone, so the same app on two platforms in one subscription asked
+          # for the same role assignment ID, and Azure refused the second (UpdateNotPermitted).
+          azureName: '${"%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name + "/blob-access/1")]).substring(0, 8) + "-" + "%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name + "/blob-access/2")]).substring(0, 4) + "-" + "%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name + "/blob-access/3")]).substring(0, 4) + "-" + "%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name + "/blob-access/4")]).substring(0, 4) + "-" + "%x".format([hash.fnv64a(settings.data.nameSeed + "/" + schema.metadata.namespace + "/" + schema.metadata.name + "/blob-access/5")]).substring(0, 12)}'
           owner:
             name: ${account.metadata.name}
             group: storage.azure.com
