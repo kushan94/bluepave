@@ -142,9 +142,13 @@ request, and the platform does the rest after the merge.
 it (`deploy/values-dev.yaml`, `deploy/values-staging.yaml`). Kargo writes each image there:
 
 ```yaml
-# deploy/values-dev.yaml
+# deploy/values-dev.yaml: Kargo fills these in on every promotion. Keep block style, one key per
+# line: Kargo can't edit inline { ... } mappings (bluepave validate checks this).
 images:
-  api: { repository: "", tag: "", digest: "" }   # Kargo fills these in on every promotion
+  api:
+    repository: ""
+    tag: ""
+    digest: ""
 ```
 
 ```yaml

@@ -4,9 +4,18 @@
 # apps/anvil.yaml): each image's repository in the platform registry, its tag (the commit) and
 # digest. A component without a digest isn't deployed yet.
 images:
-  web: { repository: "", tag: "", digest: "" }
-  api: { repository: "", tag: "", digest: "" }
-  worker: { repository: "", tag: "", digest: "" }
+  web:
+    repository: ""
+    tag: ""
+    digest: ""
+  api:
+    repository: ""
+    tag: ""
+    digest: ""
+  worker:
+    repository: ""
+    tag: ""
+    digest: ""
 
 # The service account the api and worker run as. The platform APIs below create identities
 # trusted by it (one per API); the app picks each by client ID from the API's ConfigMap.

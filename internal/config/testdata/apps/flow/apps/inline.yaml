@@ -1,0 +1,10 @@
+apiVersion: bluepave.dev/v1alpha1
+kind: App
+metadata:
+  name: inline
+spec:
+  stages: [{ name: dev }, { name: staging }]
+  source:
+    path: services/inline/deploy/chart
+  delivery:
+    images: [api]

@@ -53,3 +53,14 @@ func TestOnboardingFixturesAreValidApps(t *testing.T) {
 		}
 	}
 }
+
+// Stage values files Kargo writes to must use block style (found in the real-account run).
+func TestStageValuesBlockStyle(t *testing.T) {
+	_, err := LoadApps("testdata/apps/flow", platformFor("acme", "dev"))
+	if err == nil || !strings.Contains(err.Error(), "images.api is an inline mapping") {
+		t.Fatalf("err = %v, want the inline mapping in values-dev.yaml", err)
+	}
+	if strings.Contains(err.Error(), "values-staging.yaml") {
+		t.Errorf("block-style values-staging.yaml reported: %v", err)
+	}
+}
