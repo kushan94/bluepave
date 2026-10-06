@@ -6,6 +6,10 @@ kind: AppProject
 metadata:
   name: platform
   namespace: argocd
+  annotations:
+    # Before everything that names it: Argo CD rejects an Application or ApplicationSet whose
+    # project doesn't exist yet, and the module Applications start at wave 0.
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   description: Platform modules managed by bluepave
   sourceRepos:
