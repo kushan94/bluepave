@@ -2,6 +2,7 @@
 # module's settings. The defaults here only make the chart render on its own (helm lint).
 bluepave:
   environment: dev
+  prefix: example
   region: westeurope
   tenantId: ""
   subscriptionId: ""

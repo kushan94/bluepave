@@ -15,8 +15,9 @@ data:
   location: {{ $ctx.region | quote }}
   appsResourceGroupId: {{ $ids.appsResourceGroupId | quote }}
   oidcIssuer: {{ $ids.oidcIssuerUrl | quote }}
-  # Seed for globally unique names (storage accounts): differs per subscription and environment.
-  nameSeed: {{ printf "%s/%s" $ctx.subscriptionId $ctx.environment | quote }}
+  # Seed for globally unique names (storage accounts): differs per subscription, platform (prefix)
+  # and environment, so two platforms in one subscription never pick the same name.
+  nameSeed: {{ printf "%s/%s/%s" $ctx.subscriptionId $ctx.prefix $ctx.environment | quote }}
   {{- if eq (include "ss.appDatabase" .) "true" }}
   {{- $pg := index $ctx.discovered "data-postgres" | default dict }}
   {{- $net := index $ctx.discovered "network" | default dict }}
