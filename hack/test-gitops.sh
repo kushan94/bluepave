@@ -37,9 +37,9 @@ status=0
 # Platform APIs that run pods in app namespaces (kro ResourceGraphDefinitions: resources in the
 # instance's namespace) may only use images their module declares in module.yaml spec.appImages,
 # the only ones admission allows there. Pods in platform namespaces aren't limited this way.
-for rgd in modules/*/gitops/files/rgd-*.yaml; do
+for rgd in modules/*/gitops/files/rgd-*.yaml modules/*/gitops/*/files/rgd-*.yaml; do
   [[ -f $rgd ]] || continue
-  manifest="$(dirname "$(dirname "$(dirname "$rgd")")")/module.yaml"
+  manifest="modules/$(cut -d/ -f2 <<<"$rgd")/module.yaml"
   for image in $(yq -r '.spec.resources[].template | select(.metadata.namespace == "${schema.metadata.namespace}") | .. | select(has("image")) | .image' "$rgd" 2>/dev/null | grep -v '^---$' || true); do
     if ! yq -e ".spec.appImages[] | select(. == \"$image\")" "$manifest" >/dev/null 2>&1; then
       echo "::error file=$rgd::image $image isn't declared in $manifest spec.appImages"; status=1
@@ -89,6 +89,19 @@ for profile in profiles/*.yaml; do
       helm lint --quiet "$path" -f "$dir/$app.values.yaml" >/dev/null || { echo "::error::helm lint $path ($name)"; status=1; }
       helm template "$app" "$path" --namespace argocd -f "$dir/$app.values.yaml" > "$dir/modules/$app.yaml"
       kubeconform_ "$dir/modules/$app.yaml" || status=1
+
+      # Applications the module installs from a chart in this repository (e.g. self-service's
+      # APIs, which wait for the operators): render it with the values the module gives it.
+      for sub in $(names "$dir/modules/$app.yaml" 'select(.kind == "Application" and .spec.source.path != null)'); do
+        q="select(.kind == \"Application\" and .metadata.name == \"$sub\")"
+        subpath=$(yq -r "$q | .spec.source.path" "$dir/modules/$app.yaml")
+        yq "$q | .spec.source.helm.valuesObject" "$dir/modules/$app.yaml" > "$dir/$sub.values.yaml"
+        echo "== $name/$env: $app -> $subpath"
+        helm lint --quiet "$subpath" -f "$dir/$sub.values.yaml" >/dev/null || { echo "::error::helm lint $subpath ($name)"; status=1; }
+        helm template "$sub" "$subpath" --namespace "$(yq -r "$q | .spec.destination.namespace" "$dir/modules/$app.yaml")" \
+          -f "$dir/$sub.values.yaml" > "$dir/modules/$sub.yaml"
+        kubeconform_ "$dir/modules/$sub.yaml" || status=1
+      done
 
       # Applications the module installs from a Helm repository: render the upstream chart with
       # the computed values, which catches values the chart rejects.

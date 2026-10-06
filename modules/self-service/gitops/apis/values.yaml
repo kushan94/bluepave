@@ -1,0 +1,11 @@
+# Set by the self-service module's Application (templates/apis.yaml): the module context and the
+# module's settings. The defaults here only make the chart render on its own (helm lint).
+bluepave:
+  environment: dev
+  region: westeurope
+  tenantId: ""
+  subscriptionId: ""
+  profile: { network: { allowPublicNetworkAccess: true }, data: { cache: inCluster } }
+  modules: []
+  discovered: {}
+settings: {}
