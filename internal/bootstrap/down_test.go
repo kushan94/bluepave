@@ -2,11 +2,13 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/kushan94/bluepave/internal/config"
 	"github.com/kushan94/bluepave/internal/deploy"
 	"github.com/kushan94/bluepave/internal/modules"
 	"github.com/kushan94/bluepave/internal/run"
@@ -127,5 +129,42 @@ func TestDeleteStacksReportsFailure(t *testing.T) {
 	problems := b.deleteStacks(context.Background(), []deploy.Stack{{Module: &modules.Module{}, Env: "dev", Name: "bp-acme-dev-self-service"}})
 	if len(problems) != 1 || !strings.Contains(problems[0].Error(), "administrators/x") {
 		t.Fatalf("problems = %v", problems)
+	}
+}
+
+// failing fails every command that starts with prefix with err.
+type failing struct {
+	run.Recorder
+	prefix string
+	err    error
+}
+
+func (f *failing) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	out, _ := f.Recorder.Run(ctx, name, args...)
+	if strings.HasPrefix(strings.TrimSpace(name+" "+strings.Join(args, " ")), f.prefix) {
+		return nil, f.err
+	}
+	return out, nil
+}
+
+// When the platform repository is already deleted, its variables are gone with it.
+func TestDeleteVariablesRepoGone(t *testing.T) {
+	p := &config.Platform{}
+	p.Spec.GitHub.Owner, p.Spec.GitHub.PlatformRepo = "acme", "platform"
+	for _, tc := range []struct {
+		err      string
+		problems int
+	}{
+		{"failed to get variables: HTTP 404: Not Found (https://api.github.com/repos/acme/platform/actions/variables)", 0},
+		{"failed to get variables: HTTP 403: Forbidden", 1},
+	} {
+		r := &failing{prefix: "gh variable list", err: errors.New(tc.err)}
+		b := Bootstrap{Runner: r, Platform: p, Log: io.Discard}
+		if problems := b.deleteVariables(context.Background()); len(problems) != tc.problems {
+			t.Errorf("%s: problems = %v, want %d", tc.err, problems, tc.problems)
+		}
+		if len(r.Calls) != 1 {
+			t.Errorf("%s: calls = %v, want only the list", tc.err, r.Calls)
+		}
 	}
 }

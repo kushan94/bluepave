@@ -70,14 +70,30 @@ func (b Bootstrap) Down(ctx context.Context, stacks []deploy.Stack, flow AppFlow
 	}
 
 	b.logf("==> Repository variables")
-	// Only the ones that exist (BLUEPAVE_REGISTRY comes late in `up`), so gh prints no 404s.
+	problems = append(problems, b.deleteVariables(ctx)...)
+	return problems
+}
+
+// deleteVariables deletes the platform's repository variables. Only the ones that exist
+// (BLUEPAVE_REGISTRY comes late in `up`), so gh prints no 404s; none when the repository is gone.
+func (b Bootstrap) deleteVariables(ctx context.Context) []error {
 	out, err := b.Runner.Run(ctx, "gh", "variable", "list", "--repo", b.repo(), "--json", "name", "--jq", ".[].name")
-	try("list repository variables", err)
+	if err != nil {
+		if strings.Contains(err.Error(), "HTTP 404") {
+			b.logf("    none: repository %s is gone", b.repo())
+			return nil
+		}
+		b.logf("    failed: %v", err)
+		return []error{fmt.Errorf("list repository variables: %w", err)}
+	}
+	var problems []error
 	existing := strings.Fields(string(out))
 	for _, v := range []string{"BLUEPAVE_TENANT_ID", "BLUEPAVE_SUBSCRIPTION_ID", "BLUEPAVE_CLIENT_ID", "BLUEPAVE_REGISTRY"} {
 		if slices.Contains(existing, v) {
-			_, err := b.Runner.Run(ctx, "gh", "variable", "delete", v, "--repo", b.repo())
-			try("variable "+v, err)
+			if _, err := b.Runner.Run(ctx, "gh", "variable", "delete", v, "--repo", b.repo()); err != nil {
+				b.logf("    failed: %v", err)
+				problems = append(problems, fmt.Errorf("variable %s: %w", v, err))
+			}
 		}
 	}
 	return problems
