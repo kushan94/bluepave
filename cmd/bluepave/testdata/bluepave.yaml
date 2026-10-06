@@ -1,0 +1,29 @@
+# Test fixture: the example platform the template ships with (bluepave.yaml before you edit it).
+# The CLI tests read this, not the repository's bluepave.yaml, so they pass in every platform
+# repository. Keep it in sync with the template's example, not with your platform.
+# The platform's configuration: the only file to edit after creating your repository from the
+# bluepave template. `bluepave validate` checks it against api/v1alpha1/platform.schema.json.
+# The values below are an example (acme); replace them with yours.
+apiVersion: bluepave.dev/v1alpha1
+kind: Platform
+metadata:
+  name: acme-platform
+spec:
+  prefix: acme
+  profile: trial
+  azure:
+    region: westeurope
+  environments: [dev]
+  dns:
+    domain: platform.example.com
+  github:
+    owner: acme
+    platformRepo: acme-platform
+  admins:
+    group: acme-platform-admins
+  # Modules come from the profile (profiles/<profile>.yaml spec.modules.defaultsEnabled). Turn one
+  # off with `<name>: {enabled: false}`, or change its settings (modules/<name>/docs).
+  modules:
+    certificates:
+      settings:
+        acmeEmail: platform-team@example.com
