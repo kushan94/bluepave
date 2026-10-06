@@ -7,6 +7,7 @@ bluepave:
   subscriptionId: ""
   profile: { network: { allowPublicNetworkAccess: true }, data: { cache: inCluster } }
   modules: []
+  gitops: { repoURL: https://github.com/example/example-platform.git, revision: main }
   discovered: {}
   scheduling: { tolerations: [], highAvailability: true }
 settings: {}

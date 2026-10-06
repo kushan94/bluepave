@@ -1,0 +1,46 @@
+{{- /*
+The platform APIs (ResourceGraphDefinitions) and their per-environment settings, in their own
+Application (the chart in apis/). They need kro's CRDs, which the kro Application installs: in
+this chart Argo CD would refuse the whole sync while kro.run doesn't exist yet ("failed to
+discover server resources"), kro included, and never get past it. As a separate Application in
+a later wave, it syncs once kro and Azure Service Operator are healthy.
+*/ -}}
+{{- $ctx := .Values.bluepave }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: self-service-apis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: platform
+  source:
+    repoURL: {{ $ctx.gitops.repoURL | quote }}
+    targetRevision: {{ $ctx.gitops.revision | quote }}
+    # This module's chart in the platform repository.
+    path: modules/self-service/gitops/apis
+    helm:
+      releaseName: self-service-apis
+      valuesObject:
+        bluepave:
+          {{- toYaml $ctx | nindent 10 }}
+        settings:
+          {{- toYaml (.Values.settings | default dict) | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kro-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

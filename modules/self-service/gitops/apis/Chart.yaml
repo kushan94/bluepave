@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bluepave-self-service-apis
+description: The platform APIs (kro ResourceGraphDefinitions) and their settings, installed by the self-service module once kro and Azure Service Operator run
+type: application
+version: 0.1.0
