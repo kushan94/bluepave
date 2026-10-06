@@ -1,0 +1,3 @@
+# What broke the real-account run: Kargo's yaml-update can't edit inline mappings.
+images:
+  api: { repository: "", tag: "", digest: "" }
