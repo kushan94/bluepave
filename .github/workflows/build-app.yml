@@ -178,6 +178,9 @@ jobs:
 
       - name: Dependencies, Dockerfile and secrets (Trivy)
         run: |
+          # Accepted risks, if the app declares any: <app-dir>/.trivyignore.yaml, each with a reason
+          # and an expiry (Trivy reports the finding again after expired_at).
+          [[ ! -f "$APP_DIR/.trivyignore.yaml" ]] || export TRIVY_IGNOREFILE="$APP_DIR/.trivyignore.yaml"
           trivy fs --quiet --scanners vuln,misconfig,secret --severity HIGH,CRITICAL \
             --ignore-unfixed --exit-code 1 "$APP_DIR"
 
@@ -231,6 +234,9 @@ jobs:
 
       - name: Scan image (fails on fixable HIGH/CRITICAL)
         run: |
+          # Accepted risks, if the app declares any: <app-dir>/.trivyignore.yaml, each with a reason
+          # and an expiry (Trivy reports the finding again after expired_at).
+          [[ ! -f "$APP_DIR/.trivyignore.yaml" ]] || export TRIVY_IGNOREFILE="$APP_DIR/.trivyignore.yaml"
           trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL \
             --ignore-unfixed --exit-code 1 "${{ inputs.app }}-${{ matrix.component }}:scan"
 
@@ -300,6 +306,9 @@ jobs:
 
       - name: Scan the pushed image
         run: |
+          # Accepted risks, if the app declares any: <app-dir>/.trivyignore.yaml, each with a reason
+          # and an expiry (Trivy reports the finding again after expired_at).
+          [[ ! -f "$APP_DIR/.trivyignore.yaml" ]] || export TRIVY_IGNOREFILE="$APP_DIR/.trivyignore.yaml"
           trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL \
             --ignore-unfixed --exit-code 1 "$IMAGE@${{ steps.build.outputs.digest }}"
 
