@@ -72,6 +72,9 @@ type Input struct {
 	Clusters int
 	// Postgres: whether the data-postgres module is on.
 	Postgres bool
+	// PublicIPs is how many public IP addresses each new cluster needs: its egress (load
+	// balancer, NAT gateway or firewall) and, with edge-gateway, the Gateway's load balancer.
+	PublicIPs int
 }
 
 // Result is what preflight found: Problems stop `up`; Notes are informational.
@@ -134,6 +137,23 @@ func Check(ctx context.Context, r run.Runner, in Input) (*Result, error) {
 				res.Problems = append(res.Problems, fmt.Sprintf("quota %s in %s: the cluster needs %d vCPUs, %d of %d are free (other VMs in the region use the rest); free them, choose another region, or request more quota", u.label, in.Region, want, free, u.limit))
 			} else {
 				res.Notes = append(res.Notes, fmt.Sprintf("quota %s in %s: %d of %d free, %d needed", u.label, in.Region, free, u.limit, want))
+			}
+		}
+	}
+
+	// Public IPs: subscriptions have a regional limit (3 on a Free Trial), and a cluster that
+	// can't get one for its Gateway runs, but nothing is reachable from the internet.
+	if in.Clusters > 0 && in.PublicIPs > 0 {
+		ips, err := networkUsage(ctx, r, in.Region, "PublicIPAddresses")
+		if err != nil {
+			return nil, err
+		}
+		if ips != nil {
+			want := in.PublicIPs * in.Clusters
+			if free := ips.limit - ips.used; want > free {
+				res.Problems = append(res.Problems, fmt.Sprintf("public IP addresses in %s: the platform needs %d, %d of %d are free (other resources in the region hold the rest); free some, choose another region, or request more", in.Region, want, free, ips.limit))
+			} else {
+				res.Notes = append(res.Notes, fmt.Sprintf("public IP addresses in %s: %d of %d free, %d needed", in.Region, free, ips.limit, want))
 			}
 		}
 	}
@@ -255,6 +275,38 @@ func usages(ctx context.Context, r run.Runner, region string) (map[string]usage,
 		m[u.Name.Value] = usage{label: u.Name.LocalizedValue, used: int(used), limit: int(limit)}
 	}
 	return m, nil
+}
+
+// networkUsage is one network quota of the region (nil when the region doesn't report it).
+func networkUsage(ctx context.Context, r run.Runner, region, name string) (*usage, error) {
+	out, err := r.Run(ctx, "az", "network", "list-usages", "--location", region, "--output", "json")
+	if err != nil {
+		return nil, fmt.Errorf("network quota in %s: %w", region, err)
+	}
+	// The network API reports numbers as strings.
+	var list []struct {
+		Name struct {
+			Value          string `json:"value"`
+			LocalizedValue string `json:"localizedValue"`
+		} `json:"name"`
+		CurrentValue json.RawMessage `json:"currentValue"`
+		Limit        json.RawMessage `json:"limit"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return nil, fmt.Errorf("network quota in %s: %w", region, err)
+	}
+	for _, u := range list {
+		if u.Name.Value == name {
+			return &usage{label: u.Name.LocalizedValue, used: number(u.CurrentValue), limit: number(u.Limit)}, nil
+		}
+	}
+	return nil, nil
+}
+
+// number reads a JSON number that may be quoted.
+func number(raw json.RawMessage) int {
+	n, _ := strconv.Atoi(strings.Trim(string(raw), `"`))
+	return n
 }
 
 // postgresSku reports whether the region offers the Flexible Server SKU to this subscription.

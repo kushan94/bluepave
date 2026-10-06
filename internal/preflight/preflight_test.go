@@ -28,13 +28,18 @@ func trial(t *testing.T) *Profile {
 }
 
 func check(t *testing.T, skus, usage string, clusters int) *Result {
+	return checkIPs(t, skus, usage, "network-free.json", clusters)
+}
+
+func checkIPs(t *testing.T, skus, usage, network string, clusters int) *Result {
 	t.Helper()
 	rec := &run.Recorder{Responses: map[string]string{
 		"az rest --method get --url https://management.azure.com/subscriptions/s/providers/Microsoft.Compute/skus": fixture(t, skus),
-		"az vm list-usage": fixture(t, usage),
+		"az network list-usages": fixture(t, network),
+		"az vm list-usage":       fixture(t, usage),
 		"az rest --method get --url https://management.azure.com/subscriptions/s/providers/Microsoft.DBforPostgreSQL/locations": fixture(t, "postgres.json"),
 	}}
-	res, err := Check(context.Background(), rec, Input{SubscriptionID: "s", Region: "eastasia", Profile: trial(t), Clusters: clusters, Postgres: true})
+	res, err := Check(context.Background(), rec, Input{SubscriptionID: "s", Region: "eastasia", Profile: trial(t), Clusters: clusters, Postgres: true, PublicIPs: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,5 +87,14 @@ func TestQuotaSkippedForExistingClusters(t *testing.T) {
 	res := check(t, "skus-ok.json", "usage-taken.json", 0)
 	if len(res.Problems) > 0 {
 		t.Errorf("problems: %v", res.Problems)
+	}
+}
+
+// The real-account run: a Free Trial's 3 public IPs per region, all held by another platform, so
+// the Gateway got none.
+func TestPublicIPsTaken(t *testing.T) {
+	res := checkIPs(t, "skus-ok.json", "usage-free.json", "network-full.json", 1)
+	if len(res.Problems) != 1 || !strings.Contains(res.Problems[0], "public IP addresses in eastasia: the platform needs 2, 0 of 3 are free") {
+		t.Errorf("problems = %v", res.Problems)
 	}
 }
