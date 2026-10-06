@@ -126,12 +126,16 @@ func (b Bootstrap) stackState(ctx context.Context, name string) (string, error) 
 }
 
 // deleteStack deletes a stack and its resources, and waits until it's gone. It submits the delete
-// and polls with short requests, so a dropped connection can't hang it (`az stack sub delete`
-// alone holds one request open for the whole deletion). A stack already being deleted (an
+// (REST) and polls with short requests, so a dropped connection can't hang it (`az stack sub
+// delete` holds one request open for the whole deletion, and has no --no-wait). A stack already being deleted (an
 // earlier, interrupted `down`) is only waited for: Azure refuses a second delete.
 func (b Bootstrap) deleteStack(ctx context.Context, name, state string) error {
 	if !strings.EqualFold(state, "deletingResources") && !strings.EqualFold(state, "deleting") {
-		if _, err := b.az(ctx, "stack", "sub", "delete", "--name", name, "--action-on-unmanage", "deleteAll", "--yes", "--no-wait"); err != nil {
+		// `az stack sub delete` has no --no-wait; the REST call returns once Azure accepts it.
+		sub, _ := b.IDs.Get("azure", "subscriptionId").(string)
+		url := fmt.Sprintf("https://management.azure.com/subscriptions/%s/providers/Microsoft.Resources/deploymentStacks/%s"+
+			"?api-version=2024-03-01&unmanageAction.Resources=delete&unmanageAction.ResourceGroups=delete&unmanageAction.ManagementGroups=delete", sub, name)
+		if _, err := b.az(ctx, "rest", "--method", "delete", "--url", url); err != nil {
 			return err
 		}
 	}

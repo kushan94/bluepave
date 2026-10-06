@@ -63,8 +63,9 @@ func TestDeleteStacksRetriesFailed(t *testing.T) {
 			name = name[:strings.Index(name, "'")]
 		}
 		switch {
-		case strings.HasPrefix(line, "az stack sub delete"):
-			n := strings.Fields(line)[5]
+		case strings.HasPrefix(line, "az rest --method delete"):
+			n := line[strings.Index(line, "deploymentStacks/")+len("deploymentStacks/"):]
+			n = n[:strings.Index(n, "?")]
 			attempts[n]++
 			deleting[n] = 2 // two polls in deletingResources
 			return "", true
@@ -103,8 +104,8 @@ func TestDeleteStacksRetriesFailed(t *testing.T) {
 		t.Errorf("attempts = %v, want self-service twice, data-postgres once", attempts)
 	}
 	for _, c := range r.Calls {
-		if strings.HasPrefix(c.String(), "az stack sub delete") && !strings.Contains(c.String(), "--no-wait") {
-			t.Errorf("delete without --no-wait: %s", c)
+		if strings.HasPrefix(c.String(), "az stack sub delete") {
+			t.Errorf("blocking delete: %s", c)
 		}
 	}
 }
@@ -113,7 +114,7 @@ func TestDeleteStacksRetriesFailed(t *testing.T) {
 func TestDeleteStacksReportsFailure(t *testing.T) {
 	r := &run.Recorder{Handlers: []func(string) (string, bool){func(line string) (string, bool) {
 		switch {
-		case strings.HasPrefix(line, "az stack sub delete"):
+		case strings.HasPrefix(line, "az rest --method delete"):
 			return "", true
 		case strings.HasPrefix(line, "az stack sub list"):
 			return "failed", true

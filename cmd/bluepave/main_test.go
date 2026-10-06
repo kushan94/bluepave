@@ -416,8 +416,9 @@ func TestDown(t *testing.T) {
 	}, Handlers: []func(string) (string, bool){func(line string) (string, bool) {
 		// Every stack is deployed until down deletes it.
 		switch {
-		case strings.HasPrefix(line, "az stack sub delete"):
-			deletedStacks[strings.Fields(line)[5]] = true
+		case strings.HasPrefix(line, "az rest --method delete"):
+			n := line[strings.Index(line, "deploymentStacks/")+len("deploymentStacks/"):]
+			deletedStacks[n[:strings.Index(n, "?")]] = true
 			return "", true
 		case strings.HasPrefix(line, "az stack sub list"):
 			name := line[strings.Index(line, "[?name=='")+len("[?name=='"):]
@@ -452,8 +453,9 @@ func TestDown(t *testing.T) {
 	all := ""
 	for _, c := range rec.Calls {
 		all += c.String() + "\n"
-		if strings.HasPrefix(c.String(), "az stack sub delete") {
-			stackDeletes = append(stackDeletes, c.Args[4])
+		if strings.HasPrefix(c.String(), "az rest --method delete") && strings.Contains(c.String(), "deploymentStacks/") {
+			n := c.String()[strings.Index(c.String(), "deploymentStacks/")+len("deploymentStacks/"):]
+			stackDeletes = append(stackDeletes, n[:strings.Index(n, "?")])
 		}
 	}
 	// Reverse order: the last environment module first, the global modules last.
