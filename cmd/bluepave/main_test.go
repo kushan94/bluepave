@@ -410,7 +410,9 @@ func TestDown(t *testing.T) {
 		"az ad app list":           "app-x",
 		"az keyvault list-deleted": "1",
 		// Every stack is deployed (a stack that isn't returns nothing and is skipped).
-		"az stack sub list": "/subscriptions/sub-1/providers/Microsoft.Resources/deploymentStacks/x",
+		"az stack sub list": "succeeded",
+		// BLUEPAVE_REGISTRY was never set: only the others are deleted.
+		"gh variable list": "BLUEPAVE_TENANT_ID\nBLUEPAVE_SUBSCRIPTION_ID\nBLUEPAVE_CLIENT_ID\n",
 	}}
 	deleted := false
 	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
