@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 
 func TestValidateExample(t *testing.T) {
 	var out, errOut bytes.Buffer
-	code := run([]string{"validate", "-f", "../../bluepave.yaml", "-root", "../.."}, &out, &errOut)
+	code := run([]string{"validate", "-f", exampleConfig, "-root", exampleRoot(t)}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, errOut.String())
 	}
@@ -61,6 +61,7 @@ func TestUnknownCommand(t *testing.T) {
 // The committed .bluepave/resolved.yaml must match bluepave.yaml (CI runs the same check).
 func TestResolvedIsCurrent(t *testing.T) {
 	var out, errOut bytes.Buffer
+	// The real bluepave.yaml here: CI fails until .bluepave/ is re-rendered and committed.
 	if code := run([]string{"render", "-check", "-f", "../../bluepave.yaml", "-root", "../.."}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, errOut.String())
 	}
@@ -69,7 +70,7 @@ func TestResolvedIsCurrent(t *testing.T) {
 func TestRender(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "resolved.yaml")
 	var out, errOut bytes.Buffer
-	if code := run([]string{"render", "-f", "../../bluepave.yaml", "-root", "../..", "-o", dst}, &out, &errOut); code != 0 {
+	if code := run([]string{"render", "-f", exampleConfig, "-root", exampleRoot(t), "-o", dst}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, errOut.String())
 	}
 	data, err := os.ReadFile(dst)
@@ -106,7 +107,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestSettingsChecked(t *testing.T) {
-	base, err := os.ReadFile("../../bluepave.yaml")
+	base, err := os.ReadFile(exampleConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ func TestSettingsChecked(t *testing.T) {
 				t.Fatal(err)
 			}
 			var out, errOut bytes.Buffer
-			if code := run([]string{"validate", "-f", f, "-root", "../.."}, &out, &errOut); code != 1 {
+			if code := run([]string{"validate", "-f", f, "-root", exampleRoot(t)}, &out, &errOut); code != 1 {
 				t.Fatalf("exit %d, want 1; stdout: %s", code, out.String())
 			}
 			if !strings.Contains(errOut.String(), tc.want) {
@@ -158,7 +159,7 @@ func TestHostnameClaimedTwice(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, errOut bytes.Buffer
-	if code := run([]string{"validate", "-f", "../../bluepave.yaml", "-root", root}, &out, &errOut); code != 1 {
+	if code := run([]string{"validate", "-f", exampleConfig, "-root", root}, &out, &errOut); code != 1 {
 		t.Fatalf("exit %d, want 1; stdout: %s", code, out.String())
 	}
 	if want := `both claim the platform hostname "argocd"`; !strings.Contains(errOut.String(), want) {
@@ -168,7 +169,7 @@ func TestHostnameClaimedTwice(t *testing.T) {
 
 func TestPlan(t *testing.T) {
 	var out, errOut bytes.Buffer
-	if code := run([]string{"plan", "-f", "../../bluepave.yaml", "-root", "../.."}, &out, &errOut); code != 0 {
+	if code := run([]string{"plan", "-f", exampleConfig, "-root", exampleRoot(t)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut.String())
 	}
 	for _, want := range []string{"1. dns", "bp-acme-dns", "dev/aks", "bp-acme-dev-aks"} {
@@ -182,7 +183,7 @@ func TestPlan(t *testing.T) {
 // and the outputs land in discovered.yaml.
 func TestUpInfra(t *testing.T) {
 	root := t.TempDir()
-	for _, d := range []string{"profiles", "modules", "apps"} {
+	for _, d := range []string{"profiles", "modules"} {
 		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
 			t.Fatal(err)
 		}
@@ -197,7 +198,7 @@ func TestUpInfra(t *testing.T) {
 	defer func() { runner = old }()
 
 	var out, errOut bytes.Buffer
-	code := run([]string{"up", "-step", "infra", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut)
+	code := run([]string{"up", "-step", "infra", "-f", exampleConfig, "-root", root, "-yes"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut.String())
 	}
@@ -223,7 +224,7 @@ func TestUpInfra(t *testing.T) {
 // new; Key Vault has no secrets yet.
 func TestUpAll(t *testing.T) {
 	root := t.TempDir()
-	for _, d := range []string{"profiles", "modules", "apps"} {
+	for _, d := range []string{"profiles", "modules"} {
 		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
 			t.Fatal(err)
 		}
@@ -291,7 +292,7 @@ spec:
 	defer func() { appFlow = oldFlow }()
 
 	var out, errOut bytes.Buffer
-	if code := run([]string{"up", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut); code != 0 {
+	if code := run([]string{"up", "-f", exampleConfig, "-root", root, "-yes"}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d: %s\n%s", code, errOut.String(), out.String())
 	}
 	var lines []string
@@ -355,7 +356,7 @@ spec:
 
 func TestStatus(t *testing.T) {
 	root := t.TempDir()
-	for _, d := range []string{"profiles", "modules", "apps"} {
+	for _, d := range []string{"profiles", "modules"} {
 		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
 			t.Fatal(err)
 		}
@@ -376,7 +377,7 @@ func TestStatus(t *testing.T) {
 	runner = rec
 	defer func() { runner = old }()
 	var out, errOut bytes.Buffer
-	code := run([]string{"status", "-f", "../../bluepave.yaml", "-root", root}, &out, &errOut)
+	code := run([]string{"status", "-f", exampleConfig, "-root", root}, &out, &errOut)
 	if code != 1 { // kargo isn't synced
 		t.Errorf("exit %d, want 1 (an application isn't healthy)", code)
 	}
@@ -389,7 +390,7 @@ func TestStatus(t *testing.T) {
 
 func TestDown(t *testing.T) {
 	root := t.TempDir()
-	for _, d := range []string{"profiles", "modules", "apps"} {
+	for _, d := range []string{"profiles", "modules"} {
 		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
 			t.Fatal(err)
 		}
@@ -428,7 +429,7 @@ func TestDown(t *testing.T) {
 	defer func() { runner, appFlow = oldRunner, oldFlow }()
 
 	var out, errOut bytes.Buffer
-	if code := run([]string{"down", "-f", "../../bluepave.yaml", "-root", root, "-yes"}, &out, &errOut); code != 0 {
+	if code := run([]string{"down", "-f", exampleConfig, "-root", root, "-yes"}, &out, &errOut); code != 0 {
 		t.Fatalf("exit %d: %s\n%s", code, errOut.String(), out.String())
 	}
 	if !deleted {
@@ -475,4 +476,21 @@ func preflightResponses(t *testing.T, responses map[string]string) map[string]st
 		responses[prefix] = string(b)
 	}
 	return responses
+}
+
+// exampleConfig is the template's example platform (testdata), so the tests don't depend on what
+// a platform repository has made of its own bluepave.yaml.
+const exampleConfig = "testdata/bluepave.yaml"
+
+// exampleRoot is a repository root with this checkout's profiles and modules, and none of its
+// apps (which name the platform's own repositories, not the example's).
+func exampleRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, d := range []string{"profiles", "modules"} {
+		if err := os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join("../..", d))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
 }
