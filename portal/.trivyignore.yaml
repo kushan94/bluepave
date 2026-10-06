@@ -1,0 +1,13 @@
+# Accepted risks for the golden path's Trivy scans (.github/workflows/build-app.yml). Every entry
+# needs a reason and an expiry: after expired_at, Trivy reports the finding again and the build
+# fails until it's fixed or re-assessed.
+vulnerabilities:
+  - id: CVE-2026-104852
+    statement: >-
+      GHSA-7mx3-vvmw-hjmv: prototype pollution in @graphql-tools/utils mergeDeep, reached when a
+      GraphQL gateway merges subgraph results under client-chosen aliases. The portal serves no
+      GraphQL; the package comes only through mockttp (a dependency of
+      @backstage/backend-openapi-utils), whose GraphQL mocking the portal doesn't use. No fix is
+      reachable yet: mockttp 3 needs @graphql-tools 8 and mockttp 4 needs 11; the fix is in 12.0.1.
+      Re-check when Backstage moves off mockttp 3.
+    expired_at: 2026-11-05

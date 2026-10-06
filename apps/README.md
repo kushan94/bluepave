@@ -75,6 +75,9 @@ jobs:
   - Go: gofmt, vet, tests, govulncheck;
   - Python: ruff, pytest, pip-audit, hashed requirements;
   - always: gitleaks, Semgrep, Trivy (dependencies, Dockerfile, secrets, the rendered chart).
+- **Accepted risks:** a finding with no fix you can reach yet can go in `<app-dir>/.trivyignore.yaml`,
+  with a `statement` (why it doesn't apply) and an `expired_at` date. After that date Trivy reports
+  it again. Keep entries few and short-lived; the portal's file is an example.
 - **Image:** pushed with an SBOM and SLSA provenance, scanned again, then signed with Cosign
   keyless. Only images signed by this workflow (at `main` or a release tag) are admitted
   (`policy-kyverno`).
