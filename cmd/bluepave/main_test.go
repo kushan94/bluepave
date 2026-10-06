@@ -403,6 +403,7 @@ func TestDown(t *testing.T) {
 	}
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+	deletedStacks := map[string]bool{}
 	rec := &cmdrun.Recorder{Responses: map[string]string{
 		"az account show":         `{"id": "sub-1", "tenantId": "tenant-1"}`,
 		"az keyvault secret list": "1",
@@ -410,11 +411,23 @@ func TestDown(t *testing.T) {
 		"az keyvault secret show --vault-name kv-1 --name github-app-id":          "77",
 		"az ad app list":           "app-x",
 		"az keyvault list-deleted": "1",
-		// Every stack is deployed (a stack that isn't returns nothing and is skipped).
-		"az stack sub list": "succeeded",
 		// BLUEPAVE_REGISTRY was never set: only the others are deleted.
 		"gh variable list": "BLUEPAVE_TENANT_ID\nBLUEPAVE_SUBSCRIPTION_ID\nBLUEPAVE_CLIENT_ID\n",
-	}}
+	}, Handlers: []func(string) (string, bool){func(line string) (string, bool) {
+		// Every stack is deployed until down deletes it.
+		switch {
+		case strings.HasPrefix(line, "az stack sub delete"):
+			deletedStacks[strings.Fields(line)[5]] = true
+			return "", true
+		case strings.HasPrefix(line, "az stack sub list"):
+			name := line[strings.Index(line, "[?name=='")+len("[?name=='"):]
+			if deletedStacks[name[:strings.Index(name, "'")]] {
+				return "", true
+			}
+			return "succeeded", true
+		}
+		return "", false
+	}}}
 	deleted := false
 	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete && r.URL.Path == "/app" && strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
