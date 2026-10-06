@@ -70,7 +70,13 @@ go run ./cmd/bluepave validate        # the configuration, every module's settin
 go run ./cmd/bluepave modules         # the modules available, with what each one does
 go run ./cmd/bluepave render          # .bluepave/resolved.yaml and platform-settings.yaml
 go run ./cmd/bluepave plan -what-if   # the deployment stacks, in order, and Azure's what-if
+go run ./cmd/bluepave preflight       # can this subscription run the profile in this region?
 ```
+
+`preflight` (which `up` also runs first) checks that every VM size of the profile is offered to
+your subscription in the region, in the zones the cluster uses, that the vCPU quota covers the
+node pools, and that the PostgreSQL SKU exists there. Free Trial subscriptions often can't use a
+size in some regions: pick another region if it reports `NotAvailableForSubscription`.
 
 ## 4. Bring it up
 
@@ -166,5 +172,6 @@ them.
   failing resource. Each module's `docs/README.md` has a runbook.
 - **Certificates pending, URLs don't resolve:** the domain isn't delegated yet (step 4), or
   hasn't propagated. `dig NS <domain>` should show the Azure name servers.
-- **Quota errors on `trial`:** the Free Trial's vCPU quota is per region; pick a region where
-  you have no other VMs.
+- **Quota or VM size errors:** run `bluepave preflight`. The Free Trial's vCPU quota is per
+  region, so pick a region where you have no other VMs, and one that offers the profile's VM size
+  to your subscription.

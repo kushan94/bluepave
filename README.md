@@ -50,6 +50,7 @@ go run ./cmd/bluepave validate                   # check the configuration, modu
 go run ./cmd/bluepave modules                    # list available modules
 go run ./cmd/bluepave render                     # resolve modules for GitOps, platform settings for the portal (.bluepave/)
 go run ./cmd/bluepave plan [-what-if]            # the deployment stacks, in order (and their Azure changes)
+go run ./cmd/bluepave preflight                  # VM sizes, zones, quota and PostgreSQL in your region
 go run ./cmd/bluepave up                         # accounts, infra, identities (as a subscription Owner)
 ```
 
