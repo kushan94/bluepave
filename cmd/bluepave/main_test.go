@@ -187,11 +187,11 @@ func TestUpInfra(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	stacks := &cmdrun.FakeStacks{Default: `{"outputs": {"marker": {"type": "String", "value": "ok"}}}`}
 	rec := &cmdrun.Recorder{Responses: preflightResponses(t, map[string]string{
-		"az account show":     `{"id": "sub-1", "tenantId": "tenant-1"}`,
-		"az bicep build":      `{"parameters": {"environmentName": {}}}`,
-		"az stack sub create": `{"outputs": {"marker": {"type": "String", "value": "ok"}}}`,
-	})}
+		"az account show": `{"id": "sub-1", "tenantId": "tenant-1"}`,
+		"az bicep build":  `{"parameters": {"environmentName": {}}}`,
+	}), Handlers: []func(string) (string, bool){stacks.Handle}}
 	old := runner
 	runner = rec
 	defer func() { runner = old }()
@@ -228,6 +228,12 @@ func TestUpAll(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	stacks := &cmdrun.FakeStacks{Default: `{"outputs": {
+			"oidcIssuerUrl": {"value": "https://issuer.example/"},
+			"keyVaultName": {"value": "kv-1"},
+			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"},
+			"clusterName": {"value": "aks-1"},
+			"resourceGroupName": {"value": "rg-1"}}}`}
 	const portalSecret = "s3cret-from-entra"
 	rec := &cmdrun.Recorder{Responses: preflightResponses(t, map[string]string{
 		"az account show":                     `{"id": "sub-1", "tenantId": "tenant-1"}`,
@@ -242,13 +248,7 @@ func TestUpAll(t *testing.T) {
 		"az keyvault secret list": "0",
 		"az bicep build":          `{"parameters": {"environmentName": {}}}`,
 		// Every stack returns every output the identities step reads.
-		"az stack sub create": `{"outputs": {
-			"oidcIssuerUrl": {"value": "https://issuer.example/"},
-			"keyVaultName": {"value": "kv-1"},
-			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"},
-			"clusterName": {"value": "aks-1"},
-			"resourceGroupName": {"value": "rg-1"}}}`,
-	})}
+	}), Handlers: []func(string) (string, bool){stacks.Handle}}
 	old := runner
 	runner = rec
 	defer func() { runner = old }()

@@ -61,11 +61,13 @@ func (c Call) String() string {
 	return strings.TrimSpace(c.Name + " " + strings.Join(c.Args, " "))
 }
 
-// Recorder records commands instead of running them, answering each with the first matching
-// canned response (by prefix of the command line), or empty output.
+// Recorder records commands instead of running them, answering each with the first Handler that
+// knows it, else the longest matching canned response (by prefix of the command line), or empty
+// output.
 type Recorder struct {
 	Calls     []Call
 	Responses map[string]string
+	Handlers  []func(line string) (string, bool)
 }
 
 // Run implements Runner.
@@ -78,6 +80,11 @@ func (r *Recorder) RunIn(_ context.Context, stdin []byte, name string, args ...s
 	c := Call{Name: name, Args: args, Stdin: stdin}
 	r.Calls = append(r.Calls, c)
 	line := c.String()
+	for _, h := range r.Handlers {
+		if out, ok := h(line); ok {
+			return []byte(out), nil
+		}
+	}
 	longest := ""
 	for prefix := range r.Responses {
 		if strings.HasPrefix(line, prefix) && len(prefix) > len(longest) {
@@ -88,4 +95,60 @@ func (r *Recorder) RunIn(_ context.Context, stdin []byte, name string, args ...s
 		return nil, nil
 	}
 	return []byte(r.Responses[longest]), nil
+}
+
+// FakeStacks fakes Azure deployment stacks for tests, as a Recorder handler: `az stack sub create`
+// starts a new deployment of the named stack, `az stack sub list` (Engine's state query) reports
+// it succeeded at that version, and `az stack sub show` returns Outputs (a stack JSON) for it.
+type FakeStacks struct {
+	Outputs  map[string]string // stack name -> stack JSON; Default for the others
+	Default  string
+	versions map[string]int
+}
+
+// Handle implements a Recorder handler.
+func (f *FakeStacks) Handle(line string) (string, bool) {
+	if f.versions == nil {
+		f.versions = map[string]int{}
+	}
+	switch {
+	case strings.HasPrefix(line, "az stack sub create "):
+		f.versions[argAfter(line, "--name")]++
+		return "", true
+	case strings.HasPrefix(line, "az stack sub list ") && strings.Contains(line, "provisioningState: provisioningState"):
+		name := between(line, "[?name=='", "']")
+		v, ok := f.versions[name]
+		if !ok {
+			return "null", true
+		}
+		return fmt.Sprintf(`{"provisioningState": "succeeded", "modified": "v%d"}`, v), true
+	case strings.HasPrefix(line, "az stack sub show "):
+		if out, ok := f.Outputs[argAfter(line, "--name")]; ok {
+			return out, true
+		}
+		return f.Default, true
+	}
+	return "", false
+}
+
+func argAfter(line, flag string) string {
+	f := strings.Fields(line)
+	for i := 0; i+1 < len(f); i++ {
+		if f[i] == flag {
+			return f[i+1]
+		}
+	}
+	return ""
+}
+
+func between(s, open, close string) string {
+	i := strings.Index(s, open)
+	if i < 0 {
+		return ""
+	}
+	s = s[i+len(open):]
+	if j := strings.Index(s, close); j >= 0 {
+		return s[:j]
+	}
+	return s
 }

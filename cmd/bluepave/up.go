@@ -25,6 +25,9 @@ import (
 // runner is what commands use to reach Azure; tests replace it.
 var runner cmdrun.Runner = cmdrun.Exec{Log: os.Stderr}
 
+// pollInterval is how often `up` checks a deploying stack (tests set it short).
+var pollInterval = 15 * time.Second
+
 // selectStacks narrows the plan to one environment and/or one module.
 func selectStacks(stacks []deploy.Stack, env, module string) []deploy.Stack {
 	var out []deploy.Stack
@@ -221,7 +224,8 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 }
 
 func deployStacks(ctx context.Context, stdout, stderr io.Writer, pl *platform, stacks []deploy.Stack, ids discovered.IDs, root string) error {
-	eng := deploy.Engine{Runner: runner, Location: pl.config.Spec.Azure.Region}
+	eng := deploy.Engine{Runner: runner, Location: pl.config.Spec.Azure.Region, PollInterval: pollInterval,
+		Progress: func(elapsed time.Duration) { fmt.Fprintf(stdout, "    ... deploying (%s)\n", elapsed) }}
 	for i, s := range stacks {
 		fmt.Fprintf(stdout, "\n==> [%d/%d] %s (stack %s)\n", i+1, len(stacks), s.Label(), s.Name)
 		outputs, err := eng.Deploy(ctx, s, ids)
