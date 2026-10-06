@@ -1,0 +1,4 @@
+# Every change needs a review from a code owner (branch protection on main requires it).
+# Add owners for parts of the repository with more specific lines below the default, e.g.
+#   /modules/portal/  @acme/portal-team
+*  @kushan94
