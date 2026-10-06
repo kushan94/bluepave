@@ -20,20 +20,9 @@ self-service databases, caches and storage. App teams then ship by opening a pul
 
 ## How it works
 
-```
-        you                                 Azure                         the cluster (AKS)
- ┌───────────────┐   bluepave up   ┌────────────────────────┐      ┌──────────────────────────────┐
- │ bluepave.yaml │ ──────────────► │ deployment stacks      │      │ Argo CD                      │
- │  profile      │   (Bicep, one   │ network, AKS, ACR,     │      │  root app ──► one app per    │
- │  modules      │   stack per     │ Key Vault, PostgreSQL, │      │               module         │
- │  domain, repo │   module)       │ DNS, identities        │      │  apps/*.yaml ─► namespaces,  │
- └───────┬───────┘                 └────────────────────────┘      │   project, Kargo pipeline    │
-         │ git push                                                │ Kargo: dev ──► staging       │
-         ▼                                                         │ Kyverno, Falco, Gateway,     │
- ┌──────────────────────┐   reads from Git (GitOps)                │ kro + ASO (platform APIs)    │
- │ platform repository  │ ───────────────────────────────────────► │ portal, Grafana, Tempo       │
- └──────────────────────┘                                          └──────────────────────────────┘
-```
+![bluepave architecture: GitHub (platform repository, golden path, GitHub App), the Azure subscription (DNS, Entra ID, policy; per environment a network, registry, Key Vault, PostgreSQL, storage, monitoring) and the AKS cluster (Argo CD, Kargo, Kyverno, Falco, Envoy Gateway, cert-manager, kro and Azure Service Operator, observability, app namespaces), with the numbered path of a change](docs/images/architecture.svg)
+
+*Regenerate with `python3 hack/architecture-diagram/generate.py`. Logos come from their official sources and are trademarks of their owners.*
 
 bluepave is a set of **modules**, each one capability: `aks`, `network`, `registry`,
 `gitops-argocd`, `delivery-kargo`, `policy-kyverno`, `self-service`, `portal`, and others
