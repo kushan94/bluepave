@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kushan94/bluepave/internal/config"
 	"github.com/kushan94/bluepave/internal/discovered"
@@ -49,23 +50,29 @@ func TestPlan(t *testing.T) {
 
 func TestDeployPassesRecordedOutputsBackAndRecordsNewOnes(t *testing.T) {
 	gov := Stack{Module: module("governance", "global", true), Name: "bp-acme-governance", Template: "modules/governance/infra/main.bicep"}
+	stacks := &run.FakeStacks{Default: `{"outputs": {"budgetStartDate": {"type": "String", "value": "2026-10-01"},
+	                                                  "other": {"type": "String", "value": "x"}}}`}
 	rec := &run.Recorder{Responses: map[string]string{
 		// The template declares budgetStartDate, not the other recorded output.
 		"az bicep build": `{"parameters": {"budgetStartDate": {"type": "string"}, "inheritedTags": {"type": "array"}}}`,
-		"az stack sub create": `{"outputs": {"budgetStartDate": {"type": "String", "value": "2026-10-01"},
-		                                     "other": {"type": "String", "value": "x"}}}`,
-	}}
+	}, Handlers: []func(string) (string, bool){stacks.Handle}}
 	ids := discovered.IDs{}
 	ids.SetOutputs("", "governance", map[string]any{"budgetStartDate": "2026-10-01", "unrelated": "y"})
-	eng := Engine{Runner: rec, Location: "westeurope"}
+	eng := Engine{Runner: rec, Location: "westeurope", PollInterval: time.Millisecond}
 	outputs, err := eng.Deploy(context.Background(), gov, ids)
 	if err != nil {
 		t.Fatal(err)
 	}
-	create := rec.Calls[len(rec.Calls)-1].String()
+	var create string
+	for _, c := range rec.Calls {
+		if strings.HasPrefix(c.String(), "az stack sub create") {
+			create = c.String()
+		}
+	}
 	for _, want := range []string{
 		"az stack sub create --name bp-acme-governance --location westeurope",
 		"--action-on-unmanage deleteAll --deny-settings-mode none --yes",
+		"--no-wait",
 		"--parameters budgetStartDate=2026-10-01",
 	} {
 		if !strings.Contains(create, want) {
@@ -89,5 +96,36 @@ func TestEnvironmentStackGetsEnvironmentName(t *testing.T) {
 	}
 	if strings.Join(params, " ") != "environmentName=dev" {
 		t.Errorf("params = %v", params)
+	}
+}
+
+// A deployment is submitted, then polled until its new version finishes; a failure carries the
+// stack's error.
+func TestDeployPollsUntilDone(t *testing.T) {
+	s := Stack{Module: module("dns", "global", true), Name: "bp-acme-dns", Template: "modules/dns/infra/main.bicep"}
+	polls := 0
+	rec := &run.Recorder{Handlers: []func(string) (string, bool){func(line string) (string, bool) {
+		if !strings.HasPrefix(line, "az stack sub list") {
+			return "", false
+		}
+		polls++
+		switch polls {
+		case 1: // before: an earlier deployment
+			return `{"provisioningState": "succeeded", "modified": "t0"}`, true
+		case 2: // the earlier deployment, not this one yet
+			return `{"provisioningState": "succeeded", "modified": "t0"}`, true
+		case 3:
+			return `{"provisioningState": "deploying", "modified": "t1"}`, true
+		default:
+			return `{"provisioningState": "failed", "modified": "t1", "error": {"code": "DeploymentFailed", "message": "zone 1 not supported"}}`, true
+		}
+	}}}
+	eng := Engine{Runner: rec, Location: "eastasia", PollInterval: time.Millisecond}
+	_, err := eng.Deploy(context.Background(), s, discovered.IDs{})
+	if err == nil || !strings.Contains(err.Error(), "zone 1 not supported") {
+		t.Fatalf("err = %v, want the stack's error", err)
+	}
+	if polls != 4 {
+		t.Errorf("polled %d times, want 4", polls)
 	}
 }
