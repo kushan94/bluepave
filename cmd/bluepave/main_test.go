@@ -187,11 +187,11 @@ func TestUpInfra(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	rec := &cmdrun.Recorder{Responses: map[string]string{
+	rec := &cmdrun.Recorder{Responses: preflightResponses(t, map[string]string{
 		"az account show":     `{"id": "sub-1", "tenantId": "tenant-1"}`,
 		"az bicep build":      `{"parameters": {"environmentName": {}}}`,
 		"az stack sub create": `{"outputs": {"marker": {"type": "String", "value": "ok"}}}`,
-	}}
+	})}
 	old := runner
 	runner = rec
 	defer func() { runner = old }()
@@ -229,7 +229,7 @@ func TestUpAll(t *testing.T) {
 		}
 	}
 	const portalSecret = "s3cret-from-entra"
-	rec := &cmdrun.Recorder{Responses: map[string]string{
+	rec := &cmdrun.Recorder{Responses: preflightResponses(t, map[string]string{
 		"az account show":                     `{"id": "sub-1", "tenantId": "tenant-1"}`,
 		"az ad signed-in-user show":           "user-1",
 		"az ad group create":                  "group-1",
@@ -248,7 +248,7 @@ func TestUpAll(t *testing.T) {
 			"containerRegistryLoginServer": {"value": "cr1.azurecr.io"},
 			"clusterName": {"value": "aks-1"},
 			"resourceGroupName": {"value": "rg-1"}}}`,
-	}}
+	})}
 	old := runner
 	runner = rec
 	defer func() { runner = old }()
@@ -409,6 +409,8 @@ func TestDown(t *testing.T) {
 		"az keyvault secret show --vault-name kv-1 --name github-app-id":          "77",
 		"az ad app list":           "app-x",
 		"az keyvault list-deleted": "1",
+		// Every stack is deployed (a stack that isn't returns nothing and is skipped).
+		"az stack sub list": "/subscriptions/sub-1/providers/Microsoft.Resources/deploymentStacks/x",
 	}}
 	deleted := false
 	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -454,4 +456,21 @@ func TestDown(t *testing.T) {
 	if len(back) != 0 {
 		t.Errorf("discovered not reset: %v", back)
 	}
+}
+
+// preflightResponses answers preflight's az calls: the trial profile fits (preflight's fixtures).
+func preflightResponses(t *testing.T, responses map[string]string) map[string]string {
+	t.Helper()
+	for prefix, file := range map[string]string{
+		"az rest --method get --url https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Compute/skus": "skus-ok.json",
+		"az vm list-usage": "usage-free.json",
+		"az rest --method get --url https://management.azure.com/subscriptions/sub-1/providers/Microsoft.DBforPostgreSQL/locations": "postgres.json",
+	} {
+		b, err := os.ReadFile(filepath.Join("../../internal/preflight/testdata", file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		responses[prefix] = string(b)
+	}
+	return responses
 }

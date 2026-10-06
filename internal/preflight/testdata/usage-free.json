@@ -1,0 +1,3 @@
+[{"name": {"value": "cores", "localizedValue": "Total Regional vCPUs"}, "currentValue": 0, "limit": 4},
+ {"name": {"value": "standardDDSv5Family", "localizedValue": "Standard DDSv5 Family vCPUs"}, "currentValue": 0, "limit": 4},
+ {"name": {"value": "lowPriorityCores", "localizedValue": "Total Regional Low-priority vCPUs"}, "currentValue": "0", "limit": "3"}]

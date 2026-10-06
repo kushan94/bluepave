@@ -53,11 +53,14 @@ func (b Bootstrap) Down(ctx context.Context, stacks []deploy.Stack, flow AppFlow
 	b.logf("==> Deployment stacks (newest first; their resources are deleted)")
 	for i := len(stacks) - 1; i >= 0; i-- {
 		s := stacks[i]
-		if _, err := b.Runner.Run(ctx, "az", "stack", "sub", "show", "--name", s.Name, "--query", "id", "--output", "tsv"); err != nil {
+		// A list query, not `show`: a stack that was never deployed is no result, not an error
+		// printed to the terminal.
+		out, err := b.Runner.Run(ctx, "az", "stack", "sub", "list", "--query", fmt.Sprintf("[?name=='%s'].id", s.Name), "--output", "tsv")
+		if err != nil || strings.TrimSpace(string(out)) == "" {
 			continue // not deployed
 		}
 		b.logf("    %s", s.Label())
-		_, err := b.Runner.Run(ctx, "az", "stack", "sub", "delete", "--name", s.Name, "--action-on-unmanage", "deleteAll", "--yes")
+		_, err = b.Runner.Run(ctx, "az", "stack", "sub", "delete", "--name", s.Name, "--action-on-unmanage", "deleteAll", "--yes")
 		try("stack "+s.Name, err)
 	}
 

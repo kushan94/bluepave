@@ -169,6 +169,13 @@ func upCmd(args []string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stdout)
 	}
+	// Before creating anything: a region that can't run the profile fails deep into infra.
+	if slices.Contains(run, "infra") {
+		if err := runPreflight(ctx, pl, ids, stdout); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+	}
 	if !*yes && !confirm(stdout, "Continue?") {
 		fmt.Fprintln(stderr, "cancelled")
 		return 1

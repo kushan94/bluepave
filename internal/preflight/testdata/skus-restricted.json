@@ -1,0 +1,8 @@
+{"value": [
+  {"resourceType": "virtualMachines", "name": "Standard_D2ds_v5", "family": "standardDDSv5Family",
+   "locationInfo": [{"zones": ["2", "1", "3"]}],
+   "capabilities": [{"name": "vCPUs", "value": "2"}],
+   "restrictions": [
+     {"type": "Location", "reasonCode": "NotAvailableForSubscription", "restrictionInfo": {"locations": ["southeastasia"]}},
+     {"type": "Zone", "reasonCode": "NotAvailableForSubscription", "restrictionInfo": {"zones": ["1", "2", "3"]}}]}
+]}

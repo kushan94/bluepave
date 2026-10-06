@@ -1,0 +1,2 @@
+{"value": [{"name": "FlexibleServerCapabilities", "restricted": "Disabled",
+  "supportedServerEditions": [{"name": "Burstable", "supportedServerSkus": [{"name": "Standard_B1ms"}, {"name": "Standard_B2s"}]}]}]}

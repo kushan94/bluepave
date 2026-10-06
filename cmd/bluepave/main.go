@@ -28,6 +28,8 @@ Usage:
   bluepave plan     [-f bluepave.yaml] [-env dev] [-module name] [-what-if]
                                                    list the deployment stacks in order
                                                    (-what-if: preview each in Azure)
+  bluepave preflight [-f bluepave.yaml]            check the subscription can run the profile in the region:
+                                                   VM sizes and zones, vCPU quota, PostgreSQL (up runs it)
   bluepave up       [-f bluepave.yaml] [-step accounts|infra|identities|github-app|gitops] [-env dev] [-module name] [-yes]
                                                    create the platform: admins group and CI identity,
                                                    the modules' Azure resources, Entra apps and secrets,
@@ -55,6 +57,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return renderCmd(args[1:], stdout, stderr)
 	case "plan":
 		return planCmd(args[1:], stdout, stderr)
+	case "preflight":
+		return preflightCmd(args[1:], stdout, stderr)
 	case "up":
 		return upCmd(args[1:], stdout, stderr)
 	case "status":
