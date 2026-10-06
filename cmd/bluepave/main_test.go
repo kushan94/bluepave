@@ -466,7 +466,8 @@ func preflightResponses(t *testing.T, responses map[string]string) map[string]st
 	t.Helper()
 	for prefix, file := range map[string]string{
 		"az rest --method get --url https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Compute/skus": "skus-ok.json",
-		"az vm list-usage": "usage-free.json",
+		"az vm list-usage":       "usage-free.json",
+		"az network list-usages": "network-free.json",
 		"az rest --method get --url https://management.azure.com/subscriptions/sub-1/providers/Microsoft.DBforPostgreSQL/locations": "postgres.json",
 	} {
 		b, err := os.ReadFile(filepath.Join("../../internal/preflight/testdata", file))

@@ -1,0 +1,2 @@
+[{"name": {"value": "PublicIPAddresses", "localizedValue": "Public IP Addresses"}, "currentValue": "3", "limit": "3", "unit": "Count"},
+ {"name": {"value": "VirtualNetworks", "localizedValue": "Virtual Networks"}, "currentValue": "2", "limit": "1000", "unit": "Count"}]

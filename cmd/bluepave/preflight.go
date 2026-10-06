@@ -57,7 +57,15 @@ func runPreflight(ctx context.Context, pl *platform, ids discovered.IDs, w io.Wr
 			clusters++
 		}
 	}
-	postgres := slices.ContainsFunc(pl.ordered, func(m *modules.Module) bool { return m.Metadata.Name == "data-postgres" })
+	enabled := func(name string) bool {
+		return slices.ContainsFunc(pl.ordered, func(m *modules.Module) bool { return m.Metadata.Name == name })
+	}
+	postgres := enabled("data-postgres")
+	// Each cluster: one public IP for egress, one for the Gateway's load balancer.
+	publicIPs := 1
+	if enabled("edge-gateway") {
+		publicIPs++
+	}
 	sub, _ := ids.Get("azure", "subscriptionId").(string)
 	region := pl.config.Spec.Azure.Region
 	fmt.Fprintf(w, "==> Preflight: profile %s in %s\n", pl.config.Spec.Profile, region)
@@ -67,6 +75,7 @@ func runPreflight(ctx context.Context, pl *platform, ids discovered.IDs, w io.Wr
 		Profile:        prof,
 		Clusters:       clusters,
 		Postgres:       postgres,
+		PublicIPs:      publicIPs,
 	})
 	if err != nil {
 		return err
