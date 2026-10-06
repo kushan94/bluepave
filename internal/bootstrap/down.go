@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -53,13 +54,17 @@ func (b Bootstrap) Down(ctx context.Context, stacks []deploy.Stack, flow AppFlow
 	b.logf("==> Deployment stacks (newest first; their resources are deleted)")
 	for i := len(stacks) - 1; i >= 0; i-- {
 		s := stacks[i]
-		// A list query, not `show`: a stack that was never deployed is no result, not an error
-		// printed to the terminal.
-		out, err := b.Runner.Run(ctx, "az", "stack", "sub", "list", "--query", fmt.Sprintf("[?name=='%s'].id", s.Name), "--output", "tsv")
-		if err != nil || strings.TrimSpace(string(out)) == "" {
+		state, err := b.stackState(ctx, s.Name)
+		if err != nil || state == "" {
 			continue // not deployed
 		}
 		b.logf("    %s", s.Label())
+		if strings.EqualFold(state, "deletingResources") {
+			// Already being deleted (an earlier, interrupted `down`): Azure refuses a second
+			// delete, so wait for this one instead.
+			try("stack "+s.Name, b.waitStackGone(ctx, s.Name))
+			continue
+		}
 		_, err = b.Runner.Run(ctx, "az", "stack", "sub", "delete", "--name", s.Name, "--action-on-unmanage", "deleteAll", "--yes")
 		try("stack "+s.Name, err)
 	}
@@ -81,11 +86,51 @@ func (b Bootstrap) Down(ctx context.Context, stacks []deploy.Stack, flow AppFlow
 	}
 
 	b.logf("==> Repository variables")
+	// Only the ones that exist (BLUEPAVE_REGISTRY comes late in `up`), so gh prints no 404s.
+	out, err := b.Runner.Run(ctx, "gh", "variable", "list", "--repo", b.repo(), "--json", "name", "--jq", ".[].name")
+	try("list repository variables", err)
+	existing := strings.Fields(string(out))
 	for _, v := range []string{"BLUEPAVE_TENANT_ID", "BLUEPAVE_SUBSCRIPTION_ID", "BLUEPAVE_CLIENT_ID", "BLUEPAVE_REGISTRY"} {
-		// Missing variables are fine.
-		_, _ = b.Runner.Run(ctx, "gh", "variable", "delete", v, "--repo", b.repo())
+		if slices.Contains(existing, v) {
+			_, err := b.Runner.Run(ctx, "gh", "variable", "delete", v, "--repo", b.repo())
+			try("variable "+v, err)
+		}
 	}
 	return problems
+}
+
+// stackState is a deployment stack's provisioning state, or "" when it doesn't exist. A list
+// query, not `show`: a stack that was never deployed is no result, not an error on the terminal.
+func (b Bootstrap) stackState(ctx context.Context, name string) (string, error) {
+	out, err := b.Runner.Run(ctx, "az", "stack", "sub", "list", "--query", fmt.Sprintf("[?name=='%s'].provisioningState", name), "--output", "tsv")
+	return strings.TrimSpace(string(out)), err
+}
+
+// waitStackGone polls until the stack no longer exists (at most 60 minutes).
+func (b Bootstrap) waitStackGone(ctx context.Context, name string) error {
+	for i := 0; i < 120; i++ {
+		state, err := b.stackState(ctx, name)
+		if err != nil {
+			return err
+		}
+		if state == "" {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(b.pollInterval()):
+		}
+	}
+	return fmt.Errorf("stack %s is still being deleted after 60 minutes; run `bluepave down` again later", name)
+}
+
+// pollInterval is how often waits poll Azure (PollInterval, or 30s).
+func (b Bootstrap) pollInterval() time.Duration {
+	if b.PollInterval > 0 {
+		return b.PollInterval
+	}
+	return 30 * time.Second
 }
 
 func (b Bootstrap) deleteApp(ctx context.Context, flow AppFlow) error {

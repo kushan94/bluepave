@@ -20,6 +20,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -46,6 +47,8 @@ type Bootstrap struct {
 	Modules  []string // enabled modules
 	IDs      discovered.IDs
 	Log      io.Writer
+	// PollInterval is how often waits poll Azure (default 30s; tests set it short).
+	PollInterval time.Duration
 }
 
 func (b Bootstrap) repo() string {
